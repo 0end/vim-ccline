@@ -120,10 +120,17 @@ endfunction
 
 function! s:get_cursor_char()
   let [save_reg, save_reg_type] = [getreg('"'), getregtype('"')]
-  normal! ""yl
-  let cursor = @"
-  call setreg('"', save_reg, save_reg_type)
-  return cursor
+  try
+    if col('.') ==# col('$') || virtcol('.') > virtcol('$')
+      return ''
+    endif
+    normal! ""yl
+    return @"
+  catch
+    return ''
+  finally
+    call setreg('"', save_reg, save_reg_type)
+  endtry
 endfunction
 
 let &cpo = s:save_cpo
