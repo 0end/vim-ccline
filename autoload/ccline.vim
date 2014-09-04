@@ -20,7 +20,7 @@ call s:ccline.connect("ExceptionExit")
 call s:ccline.connect("ExceptionMessage")
 call s:ccline.connect("Execute")
 
-let s:ccline.syntax_dict = [{'str': '', 'syntax': 'None'}]
+let s:ccline.line_highlight = [{'str': '', 'syntax': 'None'}]
 
 function! ccline#start(input)
   call s:ccline.start(a:input)
@@ -30,7 +30,7 @@ function! s:ccline.on_draw_pre(cmdline)
   if a:cmdline.is_input("\<Right>") || a:cmdline.is_input("\<Left>")
     return
   endif
-  let a:cmdline.syntax_dict = ccline#strsyntax(a:cmdline.getline(), 'vim')
+  let a:cmdline.line_highlight = ccline#strsyntax(a:cmdline.getline(), 'vim')
 endfunction
 
 let s:tempbufnr = 0
@@ -81,7 +81,7 @@ function! ccline#strsyntax(str, ft)
   normal! ""gP
   call setreg('"', save_reg, save_reg_type)
   call cursor(1, 1, 0)
-  let syntax_dict = []
+  let syntax_list = []
   let temp_str = ''
   let synID = 0
   let old_synID = 0
@@ -90,7 +90,7 @@ function! ccline#strsyntax(str, ft)
     let synID = synIDtrans(synID(line("."), col("."), 1))
     if old_synID != synID && i > 0
       let synname = (old_synID == 0) ? 'None' : synIDattr(old_synID, 'name')
-      let syntax_dict += [{'str' : temp_str, 'syntax' : synname}]
+      let syntax_list += [{'str' : temp_str, 'syntax' : synname}]
       let temp_str = s:get_cursor_char()
     else
       let temp_str .= s:get_cursor_char()
@@ -104,14 +104,14 @@ function! ccline#strsyntax(str, ft)
     let old_linenr = linenr
   endfor
   let synname = (synID == 0) ? 'None' : synIDattr(synID, 'name')
-  let syntax_dict += [{'str' : temp_str, 'syntax' : synname}]
+  let syntax_list += [{'str' : temp_str, 'syntax' : synname}]
   call s:close_tempbuffer(save)
-  return syntax_dict
+  return syntax_list
 endfunction
 
-function! ccline#syntax_dict_to_string(syntax_dict)
+function! ccline#as_echohl(hl_list)
   let expr = ''
-  for i in a:syntax_dict
+  for i in a:hl_list
     let expr .= "echohl " . i.syntax . " | echon " . strtrans(string(i.str)) . " | "
   endfor
   let expr .= "echohl None"

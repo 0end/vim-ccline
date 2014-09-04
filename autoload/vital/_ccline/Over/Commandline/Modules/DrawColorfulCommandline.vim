@@ -91,37 +91,37 @@ endfunction
 
 
 function! s:get_linehl(cmdline)
-  let syntax_dict = deepcopy(a:cmdline.syntax_dict)
+  let linehl = deepcopy(a:cmdline.line_highlight)
 
   if empty(a:cmdline.line.pos_word())
     let cursor = {'str': ' ','syntax': a:cmdline.highlights.cursor}
-    call add(syntax_dict, cursor)
+    call add(linehl, cursor)
   else
     let cursor = {'str': a:cmdline.line.pos_word(),'syntax': a:cmdline.highlights.cursor_on}
     let cursor_pos = strchars(a:cmdline.backward())
     let len = 0
-    for i in range(len(syntax_dict))
-      let len += strchars(syntax_dict[i].str)
+    for i in range(len(linehl))
+      let len += strchars(linehl[i].str)
       if len == cursor_pos
-        let cursor_on = remove(syntax_dict, i+1)
+        let cursor_on = remove(linehl, i+1)
         let cursor_on.str = s:strpart(cursor_on.str, 1)
-        call insert(syntax_dict, cursor_on, i+1)
-        call insert(syntax_dict, cursor, i+1)
+        call insert(linehl, cursor_on, i+1)
+        call insert(linehl, cursor, i+1)
         break
       elseif len > cursor_pos
-        let cursor_on = remove(syntax_dict, i)
+        let cursor_on = remove(linehl, i)
         let cursor_on_str_len = strchars(cursor_on.str)
         let cursor_on_forward_len = len - cursor_pos - 1
         let cursor_on_forward = s:strpart(cursor_on.str, cursor_on_str_len - cursor_on_forward_len, cursor_on_forward_len)
         let cursor_on_backward = s:strpart(cursor_on.str, 0, cursor_on_str_len - cursor_on_forward_len - 1)
-        call insert(syntax_dict, {'str': cursor_on_forward, 'syntax': cursor_on.syntax}, i)
-        call insert(syntax_dict, cursor, i)
-        call insert(syntax_dict, {'str': cursor_on_backward, 'syntax': cursor_on.syntax}, i)
+        call insert(linehl, {'str': cursor_on_forward, 'syntax': cursor_on.syntax}, i)
+        call insert(linehl, cursor, i)
+        call insert(linehl, {'str': cursor_on_backward, 'syntax': cursor_on.syntax}, i)
         break
       endif
     endfor
   endif
-  return ccline#syntax_dict_to_string(syntax_dict)
+  return ccline#as_echohl(linehl)
 endfunction
 
 function! s:strpart(str, start, ...)
