@@ -113,7 +113,7 @@ endfunction
 function! ccline#as_echohl(hl_list)
   let expr = ''
   for i in a:hl_list
-    let expr .= "echohl " . i.syntax . " | echon " . strtrans(string(i.str)) . " | "
+    let expr .= "echohl " . i.syntax . " | echon " . string(i.str) . " | "
   endfor
   let expr .= "echohl None"
   return expr

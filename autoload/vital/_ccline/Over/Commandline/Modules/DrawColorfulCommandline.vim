@@ -121,7 +121,7 @@ function! s:get_linehl(cmdline)
       endif
     endfor
   endif
-  return ccline#as_echohl(linehl)
+  return strtrans(ccline#as_echohl(linehl))
 endfunction
 
 function! s:strpart(str, start, ...)
