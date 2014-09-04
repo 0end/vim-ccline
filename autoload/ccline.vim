@@ -35,29 +35,30 @@ endfunction
 
 let s:tempbufnr = 0
 
-function! s:open_tempbuffer()
+function! s:open_tempbuffer(...)
+  let bufnr = get(a:000, 0, 0)
   let save_bufnr = bufnr("%")
   let save_pos = getpos(".")
   let save_view = winsaveview()
   let save_empty = 0
   let save_hidden = &hidden
   set hidden
-  if s:tempbufnr == 0 || bufloaded(s:tempbufnr)
+  if bufnr == 0 || bufloaded(bufnr)
     noautocmd silent keepjumps enew
-    let s:tempbufnr = bufnr("%")
-    if s:tempbufnr == save_bufnr
+    let bufnr = bufnr("%")
+    if bufnr == save_bufnr
       let save_empty = 1
     endif
   else
     try
-      execute 'noautocmd silent keepjumps buffer! ' . s:tempbufnr
+      execute 'noautocmd silent keepjumps buffer! ' . bufnr
     catch
       noautocmd silent keepjumps enew
-      let s:tempbufnr = bufnr("%")
+      let bufnr = bufnr("%")
     endtry
   endif
   setlocal nobuflisted noswapfile buftype=nofile bufhidden=unload
-  return [save_bufnr, save_pos, save_view, save_empty, save_hidden]
+  return [bufnr, [save_bufnr, save_pos, save_view, save_empty, save_hidden]]
 endfunction
 
 function! s:close_tempbuffer(save)
@@ -74,7 +75,7 @@ function! s:close_tempbuffer(save)
 endfunction
 
 function! ccline#strsyntax(str, ft)
-  let save = s:open_tempbuffer()
+  let [s:tempbufnr, save] = s:open_tempbuffer(s:tempbufnr)
   execute "setlocal ft=" . a:ft
   let [save_reg, save_reg_type] = [getreg('"'), getregtype('"')]
   let @" = a:str
