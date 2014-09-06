@@ -41,8 +41,8 @@ function! s:open_tempbuffer(...)
   let save_pos = getpos(".")
   let save_view = winsaveview()
   let save_empty = 0
-  let save_hidden = &hidden
-  set hidden
+  let save_hidden = &l:bufhidden
+  setlocal bufhidden=hide
   if bufnr == 0 || bufloaded(bufnr)
     noautocmd silent keepjumps enew
     let bufnr = bufnr("%")
@@ -65,11 +65,11 @@ function! s:close_tempbuffer(save)
   let [save_bufnr, save_pos, save_view, save_empty, save_hidden] = a:save
   if save_empty
     noautocmd silent keepjumps enew
-    let &hidden = save_hidden
+    let &l:bufhidden = save_hidden
     return
   endif
   execute 'noautocmd silent keepjumps buffer! ' . save_bufnr
-  let &hidden = save_hidden
+  let &l:bufhidden = save_hidden
   call setpos(".", save_pos)
   call winrestview(save_view)
 endfunction
