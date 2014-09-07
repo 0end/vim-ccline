@@ -77,7 +77,7 @@ endfunction
 function! ccline#strsyntax(str, ft)
   let [s:tempbufnr, save] = s:open_tempbuffer(s:tempbufnr)
   execute 'noautocmd setlocal ft=' . a:ft
-  execute 'setlocal syntax=' . a:ft
+  let &l:syntax = a:ft
   let [save_reg, save_reg_type] = [getreg('"'), getregtype('"')]
   let @" = a:str
   normal! ""gP
