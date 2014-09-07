@@ -82,28 +82,27 @@ function! ccline#strsyntax(str, ft)
   let @" = a:str
   normal! ""gP
   call setreg('"', save_reg, save_reg_type)
-  call cursor(1, 1, 0)
   let syntax_list = []
   let temp_str = ''
   let synID = 0
   let old_synID = 0
-  let old_linenr = 1
-  for i in range(strchars(a:str))
-    let synID = synIDtrans(synID(line("."), col("."), 1))
-    if old_synID != synID && i > 0
-      let synname = (old_synID == 0) ? 'None' : synIDattr(old_synID, 'name')
-      let syntax_list += [{'str' : temp_str, 'syntax' : synname}]
-      let temp_str = s:get_cursor_char()
-    else
-      let temp_str .= s:get_cursor_char()
-    endif
-    normal! l
-    let old_synID = synID
-    let linenr = line(".")
-    if old_linenr < linenr
+  let lines = split(a:str, '\n', 1)
+  for linenr in range(1, len(lines))
+    let chars = split(lines[linenr - 1], '\zs')
+    for col in range(1, len(chars))
+      let synID = synIDtrans(synID(linenr, col, 1))
+      if old_synID != synID && temp_str != ''
+        let synname = (old_synID == 0) ? 'None' : synIDattr(old_synID, 'name')
+        let syntax_list += [{'str' : temp_str, 'syntax' : synname}]
+        let temp_str = chars[col - 1]
+      else
+        let temp_str .= chars[col - 1]
+      endif
+      let old_synID = synID
+    endfor
+    if linenr != len(lines)
       let temp_str .= "\n"
     endif
-    let old_linenr = linenr
   endfor
   let synname = (synID == 0) ? 'None' : synIDattr(synID, 'name')
   let syntax_list += [{'str' : temp_str, 'syntax' : synname}]
