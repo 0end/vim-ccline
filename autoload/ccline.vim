@@ -26,6 +26,9 @@ call s:ccline.cnoremap("\<Tab>", "<Over>(complete)")
 let s:ccline.line_highlight = [{'str': '', 'syntax': 'None'}]
 
 function! ccline#start(input)
+  if a:input == "'<,'>"
+    let s:visual_hl = matchadd('Visual', '\%V')
+  endif
   call s:ccline.start(a:input)
 endfunction
 
@@ -41,6 +44,10 @@ function! s:ccline.get_complete_words(args)
 endfunction
 
 function! s:ccline.on_leave(cmdline)
+  if exists('s:visual_hl')
+    call matchdelete(s:visual_hl)
+    unlet s:visual_hl
+  endif
   call ccline#complete#finish()
 endfunction
 
