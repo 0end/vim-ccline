@@ -19,6 +19,9 @@ call s:ccline.connect("DrawColorfulCommandline")
 call s:ccline.connect("ExceptionExit")
 call s:ccline.connect("ExceptionMessage")
 call s:ccline.connect("Execute")
+call s:ccline.connect("Complete")
+
+call s:ccline.cnoremap("\<Tab>", "<Over>(complete)")
 
 let s:ccline.line_highlight = [{'str': '', 'syntax': 'None'}]
 
@@ -31,6 +34,14 @@ function! s:ccline.on_draw_pre(cmdline)
     return
   endif
   let a:cmdline.line_highlight = ccline#strsyntax(a:cmdline.getline(), 'vim')
+endfunction
+
+function! s:ccline.get_complete_words(args)
+  return ccline#complete#complete(a:args)
+endfunction
+
+function! s:ccline.on_leave(cmdline)
+  call ccline#complete#finish()
 endfunction
 
 let s:tempbufnr = 0
