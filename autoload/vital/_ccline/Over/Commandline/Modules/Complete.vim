@@ -56,7 +56,7 @@ function! s:_strpart_display(src, start, ...)
   return join(chars, '')
 endfunction
 
-function! s:_as_statusline(list, count)
+function! s:_as_statusline(list, count, columns)
   if empty(a:list)
     return
   endif
@@ -81,7 +81,7 @@ function! s:_as_statusline(list, count)
     if i < len - 1
       let temp_width += tail_width
     endif
-    if temp_width > &columns
+    if temp_width > a:columns
       if l:count < i
         let last = i-1
         break
@@ -94,9 +94,9 @@ function! s:_as_statusline(list, count)
   let select = view[l:count - first]
   let with_head = (first > 0)
   let with_tail = (last < len - 1)
-  if strdisplaywidth(select) >= &columns
+  if strdisplaywidth(select) >= a:columns
     "let select = ''
-    let select_len = &columns - with_head*head_width - with_tail*tail_width
+    let select_len = a:columns - with_head*head_width - with_tail*tail_width
     let select = s:_strpart_display(select, 0, select_len)
   endif
   if a:count >= 0
@@ -197,7 +197,7 @@ function! s:module.on_char_pre(cmdline)
   endif
   if len(s:complete_list) > 1
     " let &statusline = s:_as_statusline(s:complete_list, s:count)
-    call setwinvar(winnr("$"), '&statusline', s:_as_statusline(s:complete_list, s:count))
+    call setwinvar(winnr("$"), '&statusline', s:_as_statusline(s:complete_list, s:count, winwidth(winnr("$"))))
     redrawstatus
   endif
   if len(s:complete_list) == 1
