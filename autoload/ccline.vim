@@ -20,7 +20,7 @@ call s:ccline.connect("ExceptionExit")
 call s:ccline.connect("ExceptionMessage")
 call s:ccline.connect("Execute")
 call s:ccline.connect("Complete")
-call s:ccline.connect(s:cmdline.get_module("Doautocmd").make("CCLine"))
+call s:ccline.connect(s:cmdline.make_module("Doautocmd", "CCLine"))
 
 call s:ccline.cnoremap("\<Tab>", "<Over>(complete)")
 
@@ -32,9 +32,9 @@ function! ccline#start(prompt, input)
   endif
   call s:ccline.set_prompt(a:prompt)
   let exit_code = s:ccline.start(a:input)
-  if exit_code == 1
-    doautocmd User CCLineCancel
-  endif
+  " if exit_code == 1
+  "   doautocmd User CCLineCancel
+  " endif
 endfunction
 
 function! s:ccline.get_highlight()
@@ -106,6 +106,7 @@ function! ccline#backward()
   return s:ccline.backward()
 endfunction
 
+call ccline#substitute#load()
 
 let &cpo = s:save_cpo
 unlet s:save_cpo

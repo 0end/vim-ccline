@@ -44,7 +44,7 @@ function! s:close_tempbuffer(save)
 endfunction
 
 function! ccline#highlight#strsyntax(str, ft)
-  if a:str == ''
+  if empty(a:str)
     return [{'str': '', 'syntax': 'None'}]
   endif
   let [s:tempbufnr, save] = s:open_tempbuffer(s:tempbufnr)
