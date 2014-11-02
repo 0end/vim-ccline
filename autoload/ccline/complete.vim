@@ -1,3 +1,7 @@
+scriptencoding utf-8
+let s:save_cpo = &cpo
+set cpo&vim
+
 function! ccline#complete#complete(args)
   let [A, L, P] = a:args
   let backward = strpart(L, 0, P)
@@ -1340,3 +1344,6 @@ function! ccline#complete#finish()
   unlet! s:user_function
   unlet! s:buffer_word
 endfunction
+
+let &cpo = s:save_cpo
+unlet s:save_cpo

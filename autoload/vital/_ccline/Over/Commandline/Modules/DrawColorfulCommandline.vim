@@ -76,12 +76,10 @@ function! s:module.on_draw_pre(cmdline)
 		let suffix = s:_as_echon(s:suffix(a:cmdline.get_prompt() . a:cmdline.getline() . repeat(" ", empty(a:cmdline.line.pos_word())), a:cmdline.get_suffix()))
 	endif
 
-  let linehl = s:get_linehl(a:cmdline)
-
   let self.draw_command  = join([
   \		"echohl " . a:cmdline.highlights.prompt,
   \		s:_as_echon(a:cmdline.get_prompt()),
-  \   linehl,
+  \   self.get_highlight(a:cmdline),
   \		"echohl NONE",
   \		suffix,
   \	], " | ")
@@ -89,39 +87,42 @@ function! s:module.on_draw_pre(cmdline)
 	call s:_redraw(a:cmdline)
 endfunction
 
-
-function! s:get_linehl(cmdline)
-  let linehl = deepcopy(a:cmdline.line_highlight)
-
+function! s:module.get_highlight(cmdline)
+  let hl_list = a:cmdline.get_highlight()
   if empty(a:cmdline.line.pos_word())
     let cursor = {'str': ' ','syntax': a:cmdline.highlights.cursor}
-    call add(linehl, cursor)
+    call add(hl_list, cursor)
   else
     let cursor = {'str': a:cmdline.line.pos_word(),'syntax': a:cmdline.highlights.cursor_on}
     let cursor_pos = strchars(a:cmdline.backward())
     let len = 0
-    for i in range(len(linehl))
-      let len += strchars(linehl[i].str)
+    for i in range(len(hl_list))
+      let len += strchars(hl_list[i].str)
       if len == cursor_pos
-        let cursor_on = remove(linehl, i+1)
+        let cursor_on = remove(hl_list, i+1)
         let cursor_on.str = s:strpart(cursor_on.str, 1)
-        call insert(linehl, cursor_on, i+1)
-        call insert(linehl, cursor, i+1)
+        call insert(hl_list, cursor_on, i+1)
+        call insert(hl_list, cursor, i+1)
         break
       elseif len > cursor_pos
-        let cursor_on = remove(linehl, i)
+        let cursor_on = remove(hl_list, i)
         let cursor_on_str_len = strchars(cursor_on.str)
         let cursor_on_forward_len = len - cursor_pos - 1
         let cursor_on_forward = s:strpart(cursor_on.str, cursor_on_str_len - cursor_on_forward_len, cursor_on_forward_len)
         let cursor_on_backward = s:strpart(cursor_on.str, 0, cursor_on_str_len - cursor_on_forward_len - 1)
-        call insert(linehl, {'str': cursor_on_forward, 'syntax': cursor_on.syntax}, i)
-        call insert(linehl, cursor, i)
-        call insert(linehl, {'str': cursor_on_backward, 'syntax': cursor_on.syntax}, i)
+        call insert(hl_list, {'str': cursor_on_forward, 'syntax': cursor_on.syntax}, i)
+        call insert(hl_list, cursor, i)
+        call insert(hl_list, {'str': cursor_on_backward, 'syntax': cursor_on.syntax}, i)
         break
       endif
     endfor
   endif
-  return strtrans(ccline#as_echohl(linehl))
+  let expr = ''
+  for j in hl_list
+    let expr .= "echohl " . j.syntax . " | echon " . string(j.str) . " | "
+  endfor
+  let expr .= "echohl None"
+  return strtrans(expr)
 endfunction
 
 function! s:strpart(str, start, ...)
