@@ -27,14 +27,23 @@ function! s:command_complete(A, L, P)
   return sort(filter(keys(g:ccline#command#command), 'v:val =~ ''^'' . a:A'))
 endfunction
 
+function! ccline#complete#capture(cmd)
+  let save_verbose = &verbose
+  let &verbose = 0
+  try
+    redir => result
+    execute "silent! " . a:cmd
+    redir END
+  finally
+    let &verbose = save_verbose
+  endtry
+  return result
+endfunction
 
-function! s:get_user_functions()
-  redir => functions
-  silent function
-  redir END
-  let f = split(functions, '[\r\n]')
-  call filter(f, "stridx(v:val,'<SNR>')<0")
-  return map(f, 's:parse_function_list(v:val)')
+function! s:get_user_function()
+  let function = split(ccline#complete#capture('function'), '[\r\n]')
+  call filter(function, "stridx(v:val,'<SNR>')<0")
+  return map(function, 's:parse_function_list(v:val)')
 endfunction
 function! s:parse_function_list(line)
   let function = strpart(a:line, 9)
@@ -47,7 +56,7 @@ endfunction
 
 function! s:function_complete(A, L, P)
   if !exists('s:user_function')
-    let s:user_function = s:get_user_functions()
+    let s:user_function = s:get_user_function()
   endif
   return sort(filter(s:user_function + s:default_function, 'v:val =~ ''^'' . a:A'))
 endfunction
@@ -334,10 +343,7 @@ let s:default_function = [
 
 
 function! s:augroup_complete(A, L, P)
-  redir => augroups
-  silent augroup
-  redir END
-  return sort(filter(split(augroups), 'v:val =~ ''^'' . a:A'))
+  return sort(filter(split(ccline#complete#capture('augroup')), 'v:val =~ ''^'' . a:A'))
 endfunction
 
 
@@ -348,12 +354,9 @@ function! s:parse_buffer_list(line)
 endfunction
 
 function! s:buffer_complete(A, L, P)
-  redir => buffers
-  silent buffers
-  redir END
-  let b = split(buffers, '[\r\n]')
+  let buffers = split(ccline#complete#capture('buffers'), '[\r\n]')
   " no sort
-  return filter(map(b, 's:parse_buffer_list(v:val)'), 'v:val =~ ''^'' . a:A')
+  return filter(map(buffers, 's:parse_buffer_list(v:val)'), 'v:val =~ ''^'' . a:A')
 endfunction
 
 

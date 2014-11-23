@@ -4,7 +4,7 @@ let s:save_cpo = &cpo
 set cpo&vim
 
 function! ccline#command#init()
-  let s:user_command = s:get_user_commands()
+  let s:user_command = s:get_user_command()
   unlet! g:ccline#command#command
   let g:ccline#command#command = extend(deepcopy(s:default_command), s:user_command)
   lockvar! g:ccline#command#command
@@ -51,14 +51,11 @@ function! s:parse_commandline(backward)
   return exprs
 endfunction
 
-function! s:get_user_commands()
-  redir => commands
-  silent command
-  redir END
+function! s:get_user_command()
   let result = {}
-  let c = split(commands, '[\r\n]')
-  call remove(c, 0)
-  for line in c
+  let command = split(ccline#complete#capture('command'), '[\r\n]')
+  call remove(command, 0)
+  for line in command
     let p = s:parse_command_list(line)
     let result[p[0]] = p[1]
   endfor
