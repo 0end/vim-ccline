@@ -49,6 +49,12 @@ function! s:ccline.get_complete_words(args)
   return ccline#complete#complete(a:args)
 endfunction
 
+function! s:ccline.on_enter(cmdline)
+  let s:line_highlight = [{'str': '', 'syntax': 'None'}]
+  call ccline#complete#init()
+  call ccline#command#init()
+endfunction
+
 function! s:ccline.on_execute_pre(cmdline)
   if exists('s:visual_hl')
     call matchdelete(s:visual_hl)
@@ -61,8 +67,6 @@ function! s:ccline.on_leave(cmdline)
     call matchdelete(s:visual_hl)
     unlet s:visual_hl
   endif
-  let s:line_highlight = [{'str': '', 'syntax': 'None'}]
-  call ccline#complete#finish()
 endfunction
 
 
