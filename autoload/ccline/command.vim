@@ -24,10 +24,14 @@ function! ccline#command#current(backward)
     if !s:iscommand(expr)
       return ''
     endif
-    let command_complete = get(g:ccline#command#command[expr], 'complete', '')
-    if command_complete != 'command'
+    let Command_complete = get(g:ccline#command#command[expr], 'complete', '')
+    if type(Command_complete) != type("")
       return expr
     endif
+    if Command_complete != 'command'
+      return expr
+    endif
+    unlet Command_complete
     let command = expr
   endfor
   return command
@@ -259,7 +263,7 @@ let s:default_command = {
 \ 'helpgrep': {},
 \ 'helptags': {},
 \ 'hide': {},
-\ 'highlight': {},
+\ 'highlight': {'complete': function('ccline#command#highlight#complete')},
 \ 'history': {},
 \ 'iabbrev': {},
 \ 'iabclear': {},

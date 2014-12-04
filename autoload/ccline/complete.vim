@@ -10,14 +10,20 @@ endfunction
 function! ccline#complete#complete(args)
   let [A, L, P] = a:args
   let backward = strpart(L, 0, P)
-  let complete = s:get_complete(backward)
-  return call(get(s:complete, complete, function('s:null')), a:args)
+  let Complete = s:get_complete(backward)
+  if type(Complete) == type(function('s:null'))
+    return call(Complete, a:args)
+  endif
+  return call(get(s:complete, Complete, function('s:null')), a:args)
 endfunction
 
 function! s:get_complete(backward)
   let c = ccline#command#current(a:backward)
   if c == ':'
     return 'command'
+  endif
+  if empty(c)
+    return ''
   endif
   return get(g:ccline#command#command[c], 'complete', '')
 endfunction
@@ -376,14 +382,18 @@ function! s:buffer_word_complete(A, L, P)
 endfunction
 
 
-function! s:option_complete(A, L, P)
+function! ccline#complete#option(dict, delimiter, A, L, P)
   let backward = strpart(a:L, 0, a:P)
-  let option = matchlist(backward, '\s\([a-z]\+\)\s*=\(\w*\)$')
-  if !empty(option) && has_key(s:option, option[1])
-    return sort(filter(deepcopy(s:option[option[1]]), 'v:val =~ ''^'' . option[2]'))
+  let option = matchlist(backward, '\s\([a-z]\+\)\s*' . a:delimiter . '\(\w*\)$')
+  if !empty(option) && has_key(a:dict, option[1])
+    return sort(filter(deepcopy(a:dict[option[1]]), 'v:val =~ ''^'' . option[2]'))
   else
-    return sort(filter(keys(s:option), 'v:val =~ ''^'' . a:A'))
+    return sort(filter(keys(a:dict), 'v:val =~ ''^'' . a:A'))
   endif
+endfunction
+
+function! s:option_complete(A, L, P)
+  return ccline#complete#option(s:option, '\%([+-^]\?=\|:\)', a:A, a:L, a:P)
 endfunction
 
 let s:option = {
@@ -394,28 +404,32 @@ let s:option = {
 \ 'arabicshape' : [],
 \ 'allowrevins' : [],
 \ 'altkeymap' : [],
-\ 'ambiwidth' : [],
+\ 'ambiwidth' : ['single', 'double',],
 \ 'autochdir' : [],
 \ 'autoindent' : [],
 \ 'autoread' : [],
 \ 'autowrite' : [],
 \ 'autowriteall' : [],
 \ 'background' : ['light', 'dark'],
-\ 'backspace' : [],
+\ 'backspace' : ['indent', 'eol', 'start'],
 \ 'backup' : [],
-\ 'backupcopy' : [],
+\ 'backupcopy' : ['yes', 'no', 'auto'],
 \ 'backupdir' : [],
 \ 'backupext' : [],
 \ 'backupskip' : [],
+\ 'balloondelay' : [],
+\ 'ballooneval' : [],
+\ 'balloonexpr' : [],
 \ 'binary' : [],
 \ 'bomb' : [],
 \ 'breakat' : [],
 \ 'breakindent' : [],
 \ 'breakindentopt' : [],
-\ 'bufhidden' : [],
+\ 'browsedir' : ['last', 'buffer', 'current'],
+\ 'bufhidden' : ['hide', 'unload', 'delete', 'wipe'],
 \ 'buflisted' : [],
-\ 'buftype' : [],
-\ 'casemap' : [],
+\ 'buftype' : ['nofile', 'nowrite', 'acwrite', 'quickfix', 'help'],
+\ 'casemap' : ['internal', 'keepascii'],
 \ 'cdpath' : [],
 \ 'cedit' : [],
 \ 'charconvert' : [],
