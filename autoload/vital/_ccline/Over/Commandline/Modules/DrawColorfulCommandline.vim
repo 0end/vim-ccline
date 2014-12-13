@@ -39,7 +39,7 @@ endfunction
 
 let s:old_width = 0
 function! s:_redraw(cmdline)
-	let left = a:cmdline.get_prompt() . a:cmdline.getline() . (empty(a:cmdline.line.pos_word()) ? " " : "")
+	let left = a:cmdline.get_prompt() . a:cmdline.getline() . (empty(a:cmdline.line.pos_char()) ? " " : "")
 	let width = len(left) + 1
 
 	if	a:cmdline.get_suffix() != ""
@@ -73,7 +73,7 @@ endfunction
 function! s:module.on_draw_pre(cmdline)
 	let suffix = ""
 	if	a:cmdline.get_suffix() != ""
-		let suffix = s:_as_echon(s:suffix(a:cmdline.get_prompt() . a:cmdline.getline() . repeat(" ", empty(a:cmdline.line.pos_word())), a:cmdline.get_suffix()))
+		let suffix = s:_as_echon(s:suffix(a:cmdline.get_prompt() . a:cmdline.getline() . repeat(" ", empty(a:cmdline.line.pos_char())), a:cmdline.get_suffix()))
 	endif
 
   let self.draw_command  = join([
@@ -89,11 +89,11 @@ endfunction
 
 function! s:module.get_highlight(cmdline)
   let hl_list = a:cmdline.get_highlight()
-  if empty(a:cmdline.line.pos_word())
+  if empty(a:cmdline.line.pos_char())
     let cursor = {'str': ' ','syntax': a:cmdline.highlights.cursor}
     call add(hl_list, cursor)
   else
-    let cursor = {'str': a:cmdline.line.pos_word(),'syntax': a:cmdline.highlights.cursor_on}
+    let cursor = {'str': a:cmdline.line.pos_char(),'syntax': a:cmdline.highlights.cursor_on}
     let cursor_pos = strchars(a:cmdline.backward())
     let len = 0
     for i in range(len(hl_list))
@@ -147,17 +147,17 @@ function! s:module.on_draw(cmdline)
 " 	call s:echon(a:cmdline.get_prompt())
 " 	echohl NONE
 " 	call s:echon(a:cmdline.backward())
-" 	if empty(a:cmdline.line.pos_word())
+" 	if empty(a:cmdline.line.pos_char())
 " 		execute "echohl" a:cmdline.highlights.cursor
 " 		call s:echon(' ')
 " 	else
 " 		execute "echohl" a:cmdline.highlights.cursor_on
-" 		call s:echon(a:cmdline.line.pos_word())
+" 		call s:echon(a:cmdline.line.pos_char())
 " 	endif
 " 	echohl NONE
 " 	call s:echon(a:cmdline.forward())
 " 	if	a:cmdline.get_suffix() != ""
-" 		call s:echon(s:suffix(a:cmdline.get_prompt() . a:cmdline.getline() . repeat(" ", empty(a:cmdline.line.pos_word())), a:cmdline.get_suffix()))
+" 		call s:echon(s:suffix(a:cmdline.get_prompt() . a:cmdline.getline() . repeat(" ", empty(a:cmdline.line.pos_char())), a:cmdline.get_suffix()))
 " 	endif
 endfunction
 
