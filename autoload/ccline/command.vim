@@ -42,17 +42,100 @@ function! s:iscommand(expr)
 endfunction
 
 function! s:parse_commandline(backward)
-  let over = (a:backward =~# '\s\+$')
-  let exprs = split(a:backward, '|')
-  call map(exprs, 'split(v:val)')
-  if !over
-    try
-      let last_word_index = len(exprs[len(exprs)-1]) - 1
-      call remove(exprs[len(exprs)-1], last_word_index)
-    catch
-    endtry
+  let part = s:parse(a:backward)
+  if part[len(part) - 1] !~# '^\s+$'
+    call remove(part, len(part) - 1)
   endif
-  return exprs
+  let part = map(part, 'strpart(v:val, matchend(v:val, ''^\s*''))')
+  let part = filter(part, '!empty(v:val)')
+  return s:split_list(part, '|')
+endfunction
+function! s:parse(str)
+  let single_quote = "'"
+  let double_quote = '"'
+  let space = ' '
+  let escape = '\'
+  let bar = '|'
+  let normal = 0
+  let single_quote_inner = 1
+  let double_quote_inner = 2
+  let endflag = 0
+  let escapeflag = 0
+  let state = normal
+  let result = []
+  let part = ''
+  for char in split(a:str, '\zs')
+    if state == single_quote_inner
+      if char == single_quote
+        let endflag = !endflag
+        let part .= char
+        continue
+      else
+        if endflag
+          let state = normal
+          let endflag = 0
+        else
+          let part .= char
+          continue
+        endif
+      endif
+    elseif state == double_quote_inner
+      if char == double_quote
+        let endflag = !endflag
+        let part .= char
+        continue
+      else
+        if endflag
+          let state = normal
+          let endflag = 0
+        else
+          let part .= char
+          continue
+        endif
+      endif
+    endif
+    if state == normal
+      if char == single_quote
+        let state = single_quote_inner
+        let result += [part]
+        let part = char
+      elseif char == double_quote
+        let state = double_quote_inner
+        let result += [part]
+        let part = char
+      elseif char == space
+        if escapeflag
+          let part .= char
+          let escapeflag = 0
+        else
+          let result += [part]
+          let part = char
+        endif
+      elseif char == escape
+        let escapeflag = !escapeflag
+        let part .= char
+      elseif char == bar
+        let result += [part, char]
+        let part = ''
+      else
+        let part .= char
+      endif
+    endif
+  endfor
+  let result += [part]
+  return result
+endfunction
+function! s:split_list(list, separator)
+  let result = []
+  let e = 0
+  for i in range(len(a:list))
+    if a:list[i] ==# a:separator
+      let result += [a:list[e : i - 1]]
+      let e = i + 1
+    endif
+  endfor
+  let result += [a:list[e : len(a:list) - 1]]
+  return result
 endfunction
 
 function! s:get_user_command()
