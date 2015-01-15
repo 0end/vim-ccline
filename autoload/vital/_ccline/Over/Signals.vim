@@ -52,7 +52,7 @@ endfunction
 function! s:call(list, func, ...)
 	let args = get(a:, 1, [])
 	let def = get(a:, 2, 0)
-	return map(copy(a:list), "has_key(v:val, a:func) ? call(v:val.".a:func.", args, v:val) : def")
+    return map(copy(a:list), "has_key(v:val, a:func) ? call(v:val.".a:func.", args, v:val) : def")
 endfunction
 
 function! s:base.call(func, ...)

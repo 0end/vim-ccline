@@ -13,56 +13,54 @@ function! s:_parse_line(line)
 endfunction
 
 function! s:_strpart_display(src, start, ...)
-  let len = get(a:000, 0, strdisplaywidth(a:src) - a:start)
-  if len <= 0
+  let default_len = strdisplaywidth(a:src) - a:start
+  let len = get(a:000, 0, default_len)
+  if len <= 0 || default_len <= 0
     return ''
   endif
   let chars = split(a:src, '\zs')
-
   let loss = 0
   if a:start > 0
     let temp_len = 0
-    let start_char_index = 0
-    for char in chars
-      let temp_len += strdisplaywidth(char)
+    let start_char_index = len(chars) - 1
+    for i in range(len(chars))
+      let temp_len += strdisplaywidth(chars[i])
       if temp_len >= a:start
         let loss = temp_len - a:start
+        let start_char_index = i
         break
       endif
-      let start_char_index += 1
     endfor
     call remove(chars, 0, start_char_index)
   endif
-
   let temp_len = loss
-  let end_char_index = 0
+  let end_char_index = -1
   let over = -1
-  for char in chars
-    let temp_len += strdisplaywidth(char)
+  for i in range(len(chars))
+    let temp_len += strdisplaywidth(chars[i])
     if temp_len >= len
       let over = temp_len - len
+      let end_char_index = i
       break
     endif
-    let end_char_index += 1
   endfor
-  if over == 0
-    try
-      call remove(chars, end_char_index+1, len(chars)-1)
-    catch
-    endtry
-  elseif over > 0
-    call remove(chars, end_char_index, len(chars)-1)
+  if end_char_index >= 0
+    if over > 0
+      let end_char_index -= 1
+    endif
+    if end_char_index < len(chars) - 1
+      call remove(chars, end_char_index + 1, len(chars) - 1)
+    endif
   endif
   return join(chars, '')
 endfunction
 
-function! s:_as_statusline(list, count, columns)
+
+function! s:_statusline_parts(list, count)
   if empty(a:list)
     return
   endif
   let l:count = (a:count >= 0) ? a:count : 0
-  let hl_select = "%#WildMenu#"
-  let hl_none = "%#StatusLine#"
   let head = "< "
   let tail = " >"
   let sep = "  "
@@ -73,7 +71,7 @@ function! s:_as_statusline(list, count, columns)
   let last = 0
   let len = len(a:list)
   let width = strdisplaywidth(a:list[0])
-  for i in range(1,len-1)
+  for i in range(1, len - 1)
     let last = i
     let dw = strdisplaywidth(a:list[i])
     let width += sep_width + dw
@@ -81,37 +79,111 @@ function! s:_as_statusline(list, count, columns)
     if i < len - 1
       let temp_width += tail_width
     endif
-    if temp_width > a:columns
+    if temp_width > &columns
       if l:count < i
-        let last = i-1
+        let last = i - 1
         break
       endif
       let first = i
       let width = head_width + dw
     endif
   endfor
-  let view = a:list[first : last]
-  let select = view[l:count - first]
   let with_head = (first > 0)
   let with_tail = (last < len - 1)
-  if strdisplaywidth(select) >= a:columns
-    "let select = ''
-    let select_len = a:columns - with_head*head_width - with_tail*tail_width
-    let select = s:_strpart_display(select, 0, select_len)
+  let view = a:list[first : last]
+  let select_index = l:count - first
+  let select = view[select_index]
+  if strdisplaywidth(select) >= &columns
+    let max_len = &columns - with_head*head_width - with_tail*tail_width
+    let select = s:_strpart_display(select, 0, max_len)
   endif
-  if a:count >= 0
-    let view[l:count - first] = hl_select . select . hl_none
-  else
-    let view[l:count - first] = select
+  let result = ['', select, '']
+  if select_index > 0
+    let result[0] = join(view[: select_index - 1], sep) . sep
   endif
-  let result = join(view, sep)
+  if select_index < len(view) - 1
+    let result[2] = sep . join(view[select_index + 1 :], sep)
+  endif
   if with_head
-    let result = head . result
+    let result[0] = head . result[0]
   endif
   if with_tail
-    let result .= tail
+    let result[2] .= tail
   endif
-  return hl_none . result
+  return result
+endfunction
+
+function! s:_statuslines(list, count, widths)
+  let parts = s:_statusline_parts(a:list, a:count)
+  let hl_select = "%#WildMenu#"
+  let hl_none = "%#StatusLine#"
+  if len(a:widths) == 1
+    if a:count >= 0
+      let parts[1] = hl_select . parts[1] . hl_none
+    endif
+    return [hl_none . join(parts, '')]
+  endif
+  let len = len(a:widths)
+  let result = map(range(len), "hl_none")
+  let p = 0
+  let px = 0
+  let w = 0
+  let wx = 0
+  while w < len && p < len(parts)
+    let width = a:widths[w] - wx
+    let d = s:_strpart_display(parts[p], px)
+    let dl = strdisplaywidth(d)
+    if width >= dl
+      if p == 1 && a:count >= 0
+        let result[w] .= hl_select . d . hl_none
+      else
+        let result[w] .= hl_none . d
+      endif
+      let wx += dl
+      let p += 1
+      let px = 0
+      continue
+    endif
+    if p == 1 && a:count >= 0
+      let result[w] .= hl_select . s:_strpart_display(d, 0, width) . hl_none
+    else
+      let result[w] .= hl_none . s:_strpart_display(d, 0, width)
+    endif
+    let px += width
+    let w += 1
+    let wx = 0
+  endwhile
+  return result
+endfunction
+
+function! s:_bottom_windows()
+  let save_winnr = winnr()
+  let result = []
+  for i in range(1, winnr("$"))
+    execute i . "wincmd w"
+    wincmd j
+    if i == winnr()
+      call add(result, i)
+    endif
+  endfor
+  if save_winnr != winnr()
+    execute save_winnr . "wincmd w"
+  endif
+  return result
+endfunction
+
+function! s:_set_statuslines(winnrs, statuslines)
+  for i in range(len(a:winnrs))
+    call setwinvar(a:winnrs[i], '&statusline', a:statuslines[i])
+  endfor
+endfunction
+
+function! s:_get_statuslines(winnrs)
+  let result = range(len(a:winnrs))
+  for i in range(len(a:winnrs))
+    let result[i] = getwinvar(a:winnrs[i], '&statusline')
+  endfor
+  return result
 endfunction
 
 
@@ -122,8 +194,8 @@ endfunction
 
 function! s:module.complete(cmdline)
   call s:_finish()
-  " let s:old_statusline = &statusline
-  let s:old_statusline = getwinvar(winnr("$"), '&statusline')
+  let s:bottom_windows = s:_bottom_windows()
+  let s:old_statuslines = s:_get_statuslines(s:bottom_windows)
 
   let backward = a:cmdline.backward()
   let [pos, keyword] = s:_parse_line(backward)
@@ -147,16 +219,12 @@ endfunction
 
 
 function! s:_finish()
-  " if exists("s:old_statusline")
-  "   let &statusline = s:old_statusline
-  "   unlet s:old_statusline
-  "   redrawstatus
-  " endif
-  if !exists("s:old_statusline")
+  if !exists("s:old_statuslines")
     return
   endif
-  call setwinvar(winnr("$"), '&statusline', s:old_statusline)
-  unlet s:old_statusline
+  call s:_set_statuslines(s:bottom_windows, s:old_statuslines)
+  unlet s:old_statuslines
+  unlet s:bottom_windows
   redrawstatus
 endfunction
 
@@ -196,8 +264,8 @@ function! s:module.on_char_pre(cmdline)
     call a:cmdline.insert(s:complete_list[s:count], s:pos)
   endif
   if len(s:complete_list) > 1
-    " let &statusline = s:_as_statusline(s:complete_list, s:count)
-    call setwinvar(winnr("$"), '&statusline', s:_as_statusline(s:complete_list, s:count, winwidth(winnr("$"))))
+    let statuslines = s:_statuslines(s:complete_list, s:count, map(copy(s:bottom_windows), 'winwidth(v:val)'))
+    call s:_set_statuslines(s:bottom_windows, statuslines)
     redrawstatus
   endif
   if len(s:complete_list) == 1
