@@ -18,9 +18,35 @@ call s:ccline.connect("Redraw")
 call s:ccline.connect("DrawColorfulCommandline")
 call s:ccline.connect("ExceptionExit")
 call s:ccline.connect("ExceptionMessage")
-call s:ccline.connect("Execute")
 call s:ccline.connect("Complete")
 call s:ccline.connect(s:cmdline.make_module("Doautocmd", "CCLine"))
+
+let s:execute = {
+\ "name" : "CCLineExecute",
+\}
+function! s:execute.is_input_enter(cmdline)
+  return a:cmdline.is_input("\<CR>")
+  \   || a:cmdline.is_input("\<NL>")
+  \   || a:cmdline.is_input("\<C-j>")
+endfunction
+function! s:execute.on_char_pre(cmdline)
+  if self.is_input_enter(a:cmdline)
+    call self.execute(a:cmdline)
+    call a:cmdline.setchar("")
+    call a:cmdline.exit(0)
+  endif
+  if a:cmdline.is_input("<Over>(execute-no-exit)")
+    call self.execute(a:cmdline)
+    call a:cmdline.setchar("")
+  endif
+endfunction
+function! s:execute.execute(cmdline)
+  if empty(a:cmdline.getline())
+    return a:cmdline.execute(a:cmdline.get_default_command())
+  endif
+  return a:cmdline.execute()
+endfunction
+call s:ccline.connect(s:execute)
 
 call s:ccline.cnoremap("\<Tab>", "<Over>(complete)")
 
@@ -47,6 +73,10 @@ endfunction
 
 function! s:ccline.get_complete_words(args)
   return ccline#complete#complete(a:args)
+endfunction
+
+function! s:ccline.get_default_command()
+  return histget("cmd")
 endfunction
 
 function! s:ccline.on_enter(cmdline)

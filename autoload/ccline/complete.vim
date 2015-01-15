@@ -382,9 +382,9 @@ function! s:buffer_word_complete(A, L, P)
 endfunction
 
 
-function! ccline#complete#option(dict, delimiter, A, L, P)
+function! ccline#complete#option(dict, key, delimiter, value, A, L, P)
   let backward = strpart(a:L, 0, a:P)
-  let option = matchlist(backward, '\s\([a-z]\+\)\s*' . a:delimiter . '\(\w*\)$')
+  let option = matchlist(backward, '\s\(' . a:key . '\)\s*\%(' . a:delimiter . '\)\(' . a:value . '\)$')
   if !empty(option) && has_key(a:dict, option[1])
     return sort(filter(deepcopy(a:dict[option[1]]), 'v:val =~ ''^'' . option[2]'))
   else
@@ -393,7 +393,7 @@ function! ccline#complete#option(dict, delimiter, A, L, P)
 endfunction
 
 function! s:option_complete(A, L, P)
-  return ccline#complete#option(s:option, '\%([+-^]\?=\|:\)', a:A, a:L, a:P)
+  return ccline#complete#option(s:option, '[a-z]\+', '[+-^]\?=\|:', '\w*', a:A, a:L, a:P)
 endfunction
 
 let s:option = {
