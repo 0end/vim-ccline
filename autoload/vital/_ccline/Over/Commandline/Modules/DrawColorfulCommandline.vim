@@ -71,24 +71,26 @@ endfunction
 
 
 function! s:module.on_draw_pre(cmdline)
-	let suffix = ""
-	if	a:cmdline.get_suffix() != ""
-		let suffix = s:_as_echon(s:suffix(a:cmdline.get_prompt() . a:cmdline.getline() . repeat(" ", empty(a:cmdline.line.pos_char())), a:cmdline.get_suffix()))
-	endif
+  let suffix = "echon"
+  if !empty(a:cmdline.get_suffix())
+    let suffix =  s:_as_echon(s:suffix(a:cmdline.get_prompt() . a:cmdline.getline() . repeat(" ", empty(a:cmdline.line.pos_char())), a:cmdline.get_suffix()))
+  endif
+  let prompt = s:_as_echon(a:cmdline.get_prompt())
 
-  let self.draw_command  = join([
-  \		"echohl " . a:cmdline.highlights.prompt,
-  \		s:_as_echon(a:cmdline.get_prompt()),
-  \   self.get_highlight(a:cmdline),
-  \		"echohl NONE",
-  \		suffix,
-  \	], " | ")
+  let self.draw_command = join([
+  \  "echohl " . a:cmdline.highlights.prompt,
+  \  prompt,
+  \  self.syntax_highlight(a:cmdline),
+  \  "echohl " . a:cmdline.suffix_highlight,
+  \  suffix,
+  \  "echohl NONE",
+  \ ], " | ")
 
-	call s:_redraw(a:cmdline)
+  call s:_redraw(a:cmdline)
 endfunction
 
-function! s:module.get_highlight(cmdline)
-  let hl_list = a:cmdline.get_highlight()
+function! s:module.syntax_highlight(cmdline)
+  let hl_list = deepcopy(a:cmdline.get_syntax())
   if empty(a:cmdline.line.pos_char())
     let cursor = {'str': ' ','syntax': a:cmdline.highlights.cursor}
     call add(hl_list, cursor)

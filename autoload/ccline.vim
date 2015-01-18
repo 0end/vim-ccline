@@ -48,6 +48,8 @@ function! s:execute.execute(cmdline)
 endfunction
 call s:ccline.connect(s:execute)
 
+let s:ccline.suffix_highlight = "CCLineCommandLineSuffix"
+execute "highlight link " . s:ccline.suffix_highlight . " Comment"
 
 call s:ccline.cnoremap("\<Tab>", "<Over>(complete)")
 
