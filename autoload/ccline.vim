@@ -42,15 +42,14 @@ function! s:execute.on_char_pre(cmdline)
 endfunction
 function! s:execute.execute(cmdline)
   if empty(a:cmdline.getline())
-    return a:cmdline.execute(a:cmdline.get_default_command())
+    return a:cmdline.execute(a:cmdline.default_command())
   endif
   return a:cmdline.execute()
 endfunction
 call s:ccline.connect(s:execute)
 
-call s:ccline.cnoremap("\<Tab>", "<Over>(complete)")
 
-let s:line_highlight = [{'str': '', 'syntax': 'None'}]
+call s:ccline.cnoremap("\<Tab>", "<Over>(complete)")
 
 function! ccline#start(prompt, input)
   if a:input == "'<,'>"
@@ -63,33 +62,37 @@ function! ccline#start(prompt, input)
   " endif
 endfunction
 
-function! s:ccline.get_highlight()
-  if s:ccline.is_input("\<Right>") || s:ccline.is_input("\<Left>")
-    return deepcopy(s:line_highlight)
+function! s:ccline.on_draw_pre(cmdline)
+  if empty(s:ccline.getline())
+    call s:ccline.set_suffix(s:ccline.default_command())
+  else
+    call s:ccline.set_suffix('')
   endif
-  let s:line_highlight = ccline#highlight#strsyntax(s:ccline.getline(), 'vim')
-  return deepcopy(s:line_highlight)
+
+  if !s:ccline.is_input("\<Right>") && !s:ccline.is_input("\<Left>")
+    call s:ccline.set_syntax(ccline#syntax#strsyntax(s:ccline.getline(), 'vim'))
+  endif
 endfunction
 
-function! s:ccline.get_complete_words(args)
+function! s:ccline.set_syntax(syntax)
+  let s:ccline.line_syntax = a:syntax
+endfunction
+function! s:ccline.get_syntax()
+  return s:ccline.line_syntax
+endfunction
+
+function! s:ccline.complete_words(args)
   return ccline#complete#complete(a:args)
 endfunction
 
-function! s:ccline.get_default_command()
+function! s:ccline.default_command()
   return histget("cmd")
 endfunction
 
 function! s:ccline.on_enter(cmdline)
-  let s:line_highlight = [{'str': '', 'syntax': 'None'}]
+  let s:ccline.line_syntax = [{'str': '', 'syntax': 'None'}]
   call ccline#complete#init()
   call ccline#command#init()
-endfunction
-
-function! s:ccline.on_execute_pre(cmdline)
-  if exists('s:visual_hl')
-    call matchdelete(s:visual_hl)
-    unlet s:visual_hl
-  endif
 endfunction
 
 function! s:ccline.on_leave(cmdline)

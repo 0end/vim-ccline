@@ -188,7 +188,7 @@ endfunction
 
 
 function! s:module.get_complete_words(cmdline, args)
-  return a:cmdline.get_complete_words(a:args)
+  return a:cmdline.complete_words(a:args)
 endfunction
 
 
