@@ -34,8 +34,7 @@ function! s:execute.on_char_pre(cmdline)
     call self.execute(a:cmdline)
     call a:cmdline.setchar("")
     call a:cmdline.exit(0)
-  endif
-  if a:cmdline.is_input("<Over>(execute-no-exit)")
+  elseif a:cmdline.is_input("<Over>(execute-no-exit)")
     call self.execute(a:cmdline)
     call a:cmdline.setchar("")
   endif

@@ -274,8 +274,7 @@ function! s:module.on_char_pre(cmdline)
     let statuslines = s:_statuslines(s:complete_list, s:count, map(copy(s:bottom_windows), 'winwidth(v:val)'))
     call s:_set_statuslines(s:bottom_windows, statuslines)
     redrawstatus
-  endif
-  if len(s:complete_list) == 1
+  elseif len(s:complete_list) == 1
     call a:cmdline.untap_keyinput("Completion")
   endif
 endfunction
