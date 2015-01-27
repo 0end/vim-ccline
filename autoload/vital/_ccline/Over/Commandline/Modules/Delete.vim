@@ -10,6 +10,7 @@ function! s:module.on_char_pre(cmdline)
 	if a:cmdline.is_input("\<C-h>")
 \	|| a:cmdline.is_input("\<BS>")
 		if a:cmdline.line.length() == 0
+			call a:cmdline.setchar('')
 			return a:cmdline.exit(1)
 		else
 			call a:cmdline.line.remove_prev()
