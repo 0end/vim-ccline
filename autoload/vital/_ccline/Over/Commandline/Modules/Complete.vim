@@ -6,6 +6,13 @@ let s:module = {
 \	"name" : "Complete",
 \}
 
+function! s:module.priority(event)
+  if a:event == "on_char_pre"
+    return 1
+  endif
+  return 0
+endfunction
+
 function! s:_parse_line(line)
   let keyword = matchstr(a:line, '\zs\w\+\ze$')
   let pos = strchars(a:line) - strchars(keyword)
