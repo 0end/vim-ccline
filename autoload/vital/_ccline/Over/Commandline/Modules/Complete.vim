@@ -261,7 +261,9 @@ function! s:module.on_char_pre(cmdline)
     endif
   else
     if a:cmdline.untap_keyinput("Completion")
+      let g:ccline_flag = 1
       call a:cmdline.callevent("on_char_pre")
+      unlet! g:ccline_flag
     endif
     call s:_finish()
     return

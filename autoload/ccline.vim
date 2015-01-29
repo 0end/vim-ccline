@@ -24,12 +24,21 @@ call s:ccline.connect(s:cmdline.make_module("Doautocmd", "CCLine"))
 let s:execute = {
 \ "name" : "CCLineExecute",
 \}
+function! s:execute.priority(event)
+  if a:event == "on_char_pre"
+    return 2
+  endif
+  return 0
+endfunction
 function! s:execute.is_input_enter(cmdline)
   return a:cmdline.is_input("\<CR>")
   \   || a:cmdline.is_input("\<NL>")
   \   || a:cmdline.is_input("\<C-j>")
 endfunction
 function! s:execute.on_char_pre(cmdline)
+  if exists("g:ccline_flag")
+    return
+  endif
   if self.is_input_enter(a:cmdline)
     call self.execute(a:cmdline)
     call a:cmdline.setchar("")
