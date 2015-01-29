@@ -48,5 +48,5 @@ let s:dict = {
 \}
 
 function! ccline#command#highlight#complete(A, L, P)
-  return ccline#complete#option(s:dict, '=', a:A, a:L, a:P)
+  return ccline#complete#option(s:dict, '[a-z]\+', '=', '\w*', a:A, a:L, a:P)
 endfunction
