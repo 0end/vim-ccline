@@ -31,10 +31,10 @@ function! ccline#command#current(backward)
     if !s:iscommand(expr)
       return ''
     endif
-    if get(g:ccline#command#command[a:command], 'complete', '') != 'command'
-      return expr
-    endif
     let command = expr
+    if get(g:ccline#command#command[command], 'complete', '') != 'command'
+      return command
+    endif
   endfor
   return command
 endfunction
