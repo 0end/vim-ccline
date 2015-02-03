@@ -10,11 +10,19 @@ endfunction
 function! ccline#complete#complete(args)
   let [A, L, P] = a:args
   let backward = strpart(L, 0, P)
-  let Complete = s:get_complete(backward)
-  if type(Complete) == type(function('s:null'))
-    return call(Complete, a:args)
+  let c = s:get_complete(backward)
+  if has_key(s:complete, c)
+    return call(s:complete[c], a:args)
+  else
+    if empty(c)
+      return []
+    endif
+    try
+      return call(c, a:args)
+    catch /^Vim\%((\a\+)\)\=:E699/
+      return []
+    endtry
   endif
-  return call(get(s:complete, Complete, function('s:null')), a:args)
 endfunction
 
 function! s:get_complete(backward)
@@ -393,7 +401,7 @@ function! ccline#complete#option(dict, key, delimiter, value, A, L, P)
 endfunction
 
 function! s:option_complete(A, L, P)
-  return ccline#complete#option(s:option, '[a-z]\+', '[+-^]\?=\|:', '\w*', a:A, a:L, a:P)
+  return ccline#complete#option(s:option, '\l\+', '[+-^]\?=\|:', '\w*', a:A, a:L, a:P)
 endfunction
 
 let s:option = {
@@ -734,11 +742,6 @@ let s:option = {
 \ 'writedelay' : [],
 \ }
 
-
-
-function! s:null(...)
-  return []
-endfunction
 
 let s:complete = {
 \ 'command' : function('s:command_complete'),

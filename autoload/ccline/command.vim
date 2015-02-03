@@ -11,11 +11,18 @@ function! ccline#command#init()
 endfunction
 
 function! ccline#command#current(backward)
-  let exprs = s:parse_commandline(a:backward)
+  let [part, space] = s:parse(a:backward)
+  let exprs = s:split_list(part, '|')
   if empty(exprs)
     return ':'
   endif
   let current_expr = exprs[len(exprs) - 1]
+  if empty(current_expr)
+    return ':'
+  endif
+  if a:backward !~# '\s$'
+    call remove(current_expr, len(current_expr) - 1)
+  endif
   if empty(current_expr)
     return ':'
   endif
@@ -24,14 +31,9 @@ function! ccline#command#current(backward)
     if !s:iscommand(expr)
       return ''
     endif
-    let Command_complete = get(g:ccline#command#command[expr], 'complete', '')
-    if type(Command_complete) != type("")
+    if get(g:ccline#command#command[a:command], 'complete', '') != 'command'
       return expr
     endif
-    if Command_complete != 'command'
-      return expr
-    endif
-    unlet Command_complete
     let command = expr
   endfor
   return command
@@ -41,15 +43,6 @@ function! s:iscommand(expr)
   return has_key(g:ccline#command#command, a:expr)
 endfunction
 
-function! s:parse_commandline(backward)
-  let part = s:parse(a:backward)
-  if part[len(part) - 1] !~# '^\s+$'
-    call remove(part, len(part) - 1)
-  endif
-  let part = map(part, 'strpart(v:val, matchend(v:val, ''^\s*''))')
-  let part = filter(part, '!empty(v:val)')
-  return s:split_list(part, '|')
-endfunction
 function! s:parse(str)
   let single_quote = "'"
   let double_quote = '"'
@@ -61,9 +54,12 @@ function! s:parse(str)
   let double_quote_inner = 2
   let endflag = 0
   let escapeflag = 0
+  let spaceflag = 1
   let state = normal
   let result = []
+  let spaceresult = []
   let part = ''
+  let spacepart = ''
   for char in split(a:str, '\zs')
     if state == single_quote_inner
       if char == single_quote
@@ -97,34 +93,62 @@ function! s:parse(str)
     if state == normal
       if char == single_quote
         let state = single_quote_inner
-        let result += [part]
+        if !empty(part)
+          let result += [part]
+        endif
         let part = char
       elseif char == double_quote
         let state = double_quote_inner
-        let result += [part]
+        if !empty(part)
+          let result += [part]
+        endif
         let part = char
       elseif char == space
         if escapeflag
           let part .= char
           let escapeflag = 0
         else
-          let result += [part]
-          let part = char
+          if spaceflag
+            let spacepart .= char
+          else
+            let spaceflag = 1
+            if !empty(part)
+              let result += [part]
+            endif
+            let part = ''
+            let spacepart = char
+          endif
         endif
       elseif char == escape
         let escapeflag = !escapeflag
         let part .= char
       elseif char == bar
-        let result += [part, char]
+        if !empty(part)
+          let result += [part]
+        endif
+        let result += [char]
         let part = ''
       else
         let part .= char
       endif
+
+      if char != space && spaceflag
+        let spaceflag = 0
+        let spaceresult += [spacepart]
+      endif
+
     endif
   endfor
-  let result += [part]
-  return result
+  if !empty(part)
+    let result += [part]
+  endif
+  let spaceresult += [spacepart]
+  if !spaceflag
+    call add(spaceresult, '')
+  endif
+  return [result, spaceresult]
 endfunction
+
 function! s:split_list(list, separator)
   let result = []
   let e = 0
@@ -137,6 +161,16 @@ function! s:split_list(list, separator)
   let result += [a:list[e : len(a:list) - 1]]
   return result
 endfunction
+
+function! s:combine(part, space)
+  let result = []
+  for i in range(len(a:part))
+    let result += [a:space[i], a:part[i]]
+  endfor
+  " return result + [a:space[i + 1]]
+  return result + [a:space[len(a:space) - 1]]
+endfunction
+
 
 function! s:get_user_command()
   let result = {}
@@ -346,7 +380,7 @@ let s:default_command = {
 \ 'helpgrep': {},
 \ 'helptags': {},
 \ 'hide': {},
-\ 'highlight': {'complete': function('ccline#command#highlight#complete')},
+\ 'highlight': {'complete': 'ccline#command#highlight#complete'},
 \ 'history': {},
 \ 'iabbrev': {},
 \ 'iabclear': {},
