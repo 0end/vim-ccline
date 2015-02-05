@@ -219,6 +219,7 @@ function! s:module.complete(cmdline)
   endif
   let s:line = backward . a:cmdline.forward()
   let s:pos = pos
+  let s:keyword = keyword
   call a:cmdline.setline(s:line)
 
   let s:count = 0
@@ -271,6 +272,8 @@ function! s:module.on_char_pre(cmdline)
   call a:cmdline.setline(s:line)
   if s:count >= 0
     call a:cmdline.insert(s:complete_list[s:count], s:pos)
+  else
+    call a:cmdline.insert(s:keyword, s:pos)
   endif
   if len(s:complete_list) > 1
     let statuslines = s:_statuslines(s:complete_list, s:count, map(copy(s:bottom_windows), 'winwidth(v:val)'))
