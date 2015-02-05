@@ -17,11 +17,7 @@ function! ccline#complete#complete(args)
     if empty(c)
       return []
     endif
-    try
-      return call(c, a:args)
-    catch /^Vim\%((\a\+)\)\=:E699/
-      return []
-    endtry
+    return call(c, a:args)
   endif
 endfunction
 
@@ -48,7 +44,6 @@ function! ccline#complete#capture(cmd)
   endtry
   return result
 endfunction
-
 
 let s:complete = {
 \ 'command': function('ccline#complete#command#complete'),
