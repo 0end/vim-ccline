@@ -1,13 +1,3 @@
-function! ccline#complete#option(dict, key, delimiter, value, A, L, P)
-  let backward = strpart(a:L, 0, a:P)
-  let option = matchlist(backward, '\s\(' . a:key . '\)\s*\%(' . a:delimiter . '\)\(' . a:value . '\)$')
-  if !empty(option) && has_key(a:dict, option[1])
-    return sort(filter(deepcopy(a:dict[option[1]]), 'v:val =~ ''^'' . option[2]'))
-  else
-    return sort(filter(keys(a:dict), 'v:val =~ ''^'' . a:A'))
-  endif
-endfunction
-
 function! ccline#complete#option#complete(A, L, P)
   return ccline#complete#option(s:option, '\l\+', '[+-^]\?=\|:', '\w*', a:A, a:L, a:P)
 endfunction
