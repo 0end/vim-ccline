@@ -4,10 +4,16 @@ let s:save_cpo = &cpo
 set cpo&vim
 
 function! ccline#command#init()
+  unlet! s:command
+endfunction
+
+function! ccline#command#command()
+  if exists('s:command')
+    return s:command
+  endif
   let s:user_command = s:get_user_command()
-  unlet! g:ccline#command#command
-  let g:ccline#command#command = extend(deepcopy(s:default_command), s:user_command)
-  lockvar! g:ccline#command#command
+  let s:command = extend(deepcopy(s:default_command), s:user_command)
+  return s:command
 endfunction
 
 function! ccline#command#current(backward)
@@ -32,7 +38,7 @@ function! ccline#command#current(backward)
       return ''
     endif
     let command = expr
-    if get(g:ccline#command#command[command], 'complete', '') != 'command'
+    if get(ccline#command#command()[command], 'complete', '') != 'command'
       return command
     endif
   endfor
@@ -40,7 +46,7 @@ function! ccline#command#current(backward)
 endfunction
 
 function! s:iscommand(expr)
-  return has_key(g:ccline#command#command, a:expr)
+  return has_key(ccline#command#command(), a:expr)
 endfunction
 
 function! s:parse(str)
