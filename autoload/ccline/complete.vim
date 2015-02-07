@@ -55,6 +55,10 @@ function! ccline#complete#option(dict, key, delimiter, value, A, L, P)
   endif
 endfunction
 
+function! ccline#complete#forward_matcher(list, string)
+  return filter(a:list, "v:val =~ '^" . a:string . "'")
+endfunction
+
 let s:complete = {
 \ 'command': function('ccline#complete#command#complete'),
 \ 'function': function('ccline#complete#function#complete'),

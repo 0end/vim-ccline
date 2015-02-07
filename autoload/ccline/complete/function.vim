@@ -16,7 +16,7 @@ function! ccline#complete#function#complete(A, L, P)
   if !exists('s:user_function')
     let s:user_function = s:get_user_function()
   endif
-  return sort(filter(s:user_function + s:default_function, 'v:val =~ ''^'' . a:A'))
+  return sort(ccline#complete#forward_matcher(s:user_function + s:default_function, a:A))
 endfunction
 
 function! ccline#complete#function#init()
