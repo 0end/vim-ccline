@@ -122,6 +122,7 @@ endfunction
 
 function! s:_statuslines(list, count, widths)
   let parts = s:_statusline_parts(a:list, a:count)
+  call map(parts, 's:_escape_percent(v:val)')
   let hl_select = "%#WildMenu#"
   let hl_none = "%#StatusLine#"
   if len(a:widths) == 1
@@ -177,6 +178,10 @@ function! s:_bottom_windows()
     execute save_winnr . "wincmd w"
   endif
   return result
+endfunction
+
+function! s:_escape_percent(expr)
+  return substitute(a:expr, '%', '%%', 'g')
 endfunction
 
 function! s:_set_statuslines(winnrs, statuslines)
