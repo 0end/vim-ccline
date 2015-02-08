@@ -81,6 +81,11 @@ let s:complete = {
 \ 'augroup': function('ccline#complete#augroup#complete'),
 \ 'buffer': function('ccline#complete#buffer#complete'),
 \ 'option': function('ccline#complete#option#complete'),
+\ 'behave': function('ccline#complete#behave#complete'),
+\ 'cscope': function('ccline#complete#cscope#complete'),
+\ 'history': function('ccline#complete#history#complete'),
+\ 'sign': function('ccline#complete#sign#complete'),
+\ 'syntime': function('ccline#complete#syntime#complete'),
 \ 'buffer_word': function('ccline#complete#buffer_word#complete'),
 \ }
 
