@@ -6,6 +6,5 @@ endfunction
 
 function! ccline#complete#buffer#complete(A, L, P)
   let buffers = split(ccline#complete#capture('buffers'), '[\r\n]')
-  " no sort
   return ccline#complete#forward_matcher(map(buffers, 's:parse_buffer_list(v:val)'), a:A)
 endfunction

@@ -49,14 +49,30 @@ function! ccline#complete#option(dict, key, delimiter, value, A, L, P)
   let backward = strpart(a:L, 0, a:P)
   let option = matchlist(backward, '\s\(' . a:key . '\)\s*\%(' . a:delimiter . '\)\(' . a:value . '\)$')
   if !empty(option) && has_key(a:dict, option[1])
-    return sort(filter(deepcopy(a:dict[option[1]]), 'v:val =~ ''^'' . option[2]'))
+    return sort(ccline#complete#forward_matcher(a:dict[option[1]], option[2]))
   else
-    return sort(filter(keys(a:dict), 'v:val =~ ''^'' . a:A'))
+    return sort(ccline#complete#forward_matcher(keys(a:dict), a:A))
   endif
 endfunction
 
 function! ccline#complete#forward_matcher(list, string)
-  return filter(a:list, "v:val =~ '^" . a:string . "'")
+  if &ignorecase
+    let result = []
+    for e in a:list
+      if stridx(tolower(e), tolower(a:string)) == 0
+        call add(result, e)
+      endif
+    endfor
+    return result
+  else
+    let result = []
+    for e in a:list
+      if stridx(e, a:string) == 0
+        call add(result, e)
+      endif
+    endfor
+    return result
+  endif
 endfunction
 
 let s:complete = {
