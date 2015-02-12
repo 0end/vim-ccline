@@ -51,6 +51,9 @@ function! ccline#complete#option(dict, key, delimiter, value, A, L, P)
 endfunction
 
 function! ccline#complete#forward_matcher(list, string)
+  if empty(a:string)
+    return a:list
+  endif
   if &ignorecase
     let result = []
     for e in a:list
@@ -81,6 +84,13 @@ let s:complete = {
 \ 'history': function('ccline#complete#history#complete'),
 \ 'sign': function('ccline#complete#sign#complete'),
 \ 'syntime': function('ccline#complete#syntime#complete'),
+\ 'color': function('ccline#complete#color#complete'),
+\ 'environment': function('ccline#complete#environment#complete'),
+\ 'event': function('ccline#complete#event#complete'),
+\ 'filetype': function('ccline#complete#filetype#complete'),
+\ 'highlight': function('ccline#complete#highlight#complete'),
+\ 'shellcmd': function('ccline#complete#shellcmd#complete'),
+\ 'compiler': function('ccline#complete#compiler#complete'),
 \ 'buffer_word': function('ccline#complete#buffer_word#complete'),
 \ }
 
