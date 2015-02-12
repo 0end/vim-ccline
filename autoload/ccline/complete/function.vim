@@ -13,14 +13,11 @@ function! s:parse_function_list(line)
 endfunction
 
 function! ccline#complete#function#complete(A, L, P)
-  if !exists('s:user_function')
+  if !exists('s:session_id') || ccline#session_id() > s:session_id
     let s:user_function = s:get_user_function()
+    let s:session_id = ccline#session_id()
   endif
   return sort(ccline#complete#forward_matcher(s:user_function + s:default_function, a:A))
-endfunction
-
-function! ccline#complete#function#init()
-  unlet! s:user_function
 endfunction
 
 let s:default_function = [

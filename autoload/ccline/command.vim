@@ -3,16 +3,12 @@ scriptencoding utf-8
 let s:save_cpo = &cpo
 set cpo&vim
 
-function! ccline#command#init()
-  unlet! s:command
-endfunction
-
 function! ccline#command#command()
-  if exists('s:command')
-    return s:command
+  if !exists('s:session_id') || ccline#session_id() > s:session_id
+    let s:user_command = s:get_user_command()
+    let s:command = extend(deepcopy(s:default_command), s:user_command)
+    let s:session_id = ccline#session_id()
   endif
-  let s:user_command = s:get_user_command()
-  let s:command = extend(deepcopy(s:default_command), s:user_command)
   return s:command
 endfunction
 

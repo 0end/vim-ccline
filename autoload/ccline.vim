@@ -99,10 +99,14 @@ function! s:ccline.default_command()
   return histget("cmd")
 endfunction
 
+let s:session_id = 0
+function! ccline#session_id()
+  return s:session_id
+endfunction
+
 function! s:ccline.on_enter(cmdline)
   let s:ccline.line_syntax = [{'str': '', 'syntax': 'None'}]
-  call ccline#complete#init()
-  call ccline#command#init()
+  let s:session_id += 1
 endfunction
 
 function! s:ccline.on_leave(cmdline)

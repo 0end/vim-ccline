@@ -2,11 +2,6 @@ scriptencoding utf-8
 let s:save_cpo = &cpo
 set cpo&vim
 
-function! ccline#complete#init()
-  call ccline#complete#function#init()
-  call ccline#complete#buffer_word#init()
-endfunction
-
 function! ccline#complete#complete(args)
   let [A, L, P] = a:args
   let backward = strpart(L, 0, P)

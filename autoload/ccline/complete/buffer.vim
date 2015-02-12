@@ -1,10 +1,7 @@
-function! s:parse_buffer_list(line)
-  " 9+1
-  let buffer = strpart(a:line, 10)
-  return strpart(buffer, 0, match(buffer, '\s\+line\s\d\+$') - 1)
-endfunction
-
 function! ccline#complete#buffer#complete(A, L, P)
-  let buffers = split(ccline#complete#capture('buffers'), '[\r\n]')
-  return ccline#complete#forward_matcher(map(buffers, 's:parse_buffer_list(v:val)'), a:A)
+  if !exists('s:session_id') || ccline#session_id() > s:session_id
+    let s:buffers = map(split(ccline#complete#capture('buffers'), '[\r\n]'), 'strpart(v:val, 10, stridx(v:val, ''"'', 10) - 10)')
+    let s:session_id = ccline#session_id()
+  endif
+  return ccline#complete#forward_matcher(s:buffers, a:A)
 endfunction
