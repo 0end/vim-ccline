@@ -40,6 +40,14 @@ function! ccline#complete#capture(cmd)
   return result
 endfunction
 
+function! ccline#complete#uniq(list)
+  let dict = {}
+  for _ in a:list
+    let dict[_] = 0
+  endfor
+  return keys(dict)
+endfunction
+
 function! ccline#complete#option(dict, key, delimiter, value, A, L, P)
   let backward = strpart(a:L, 0, a:P)
   let option = matchlist(backward, '\s\(' . a:key . '\)\s*\%(' . a:delimiter . '\)\(' . a:value . '\)$')
@@ -91,6 +99,7 @@ let s:complete = {
 \ 'highlight': function('ccline#complete#highlight#complete'),
 \ 'shellcmd': function('ccline#complete#shellcmd#complete'),
 \ 'compiler': function('ccline#complete#compiler#complete'),
+\ 'syntax': function('ccline#complete#syntax#complete'),
 \ 'buffer_word': function('ccline#complete#buffer_word#complete'),
 \ }
 

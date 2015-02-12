@@ -512,7 +512,7 @@ let s:default_command = {
 \ 'options': {},
 \ 'ounmap': {},
 \ 'ounmenu': {},
-\ 'ownsyntax': {},
+\ 'ownsyntax': {'complete': 'syntax'},
 \ 'pclose': {},
 \ 'pedit': {},
 \ 'perl': {},
