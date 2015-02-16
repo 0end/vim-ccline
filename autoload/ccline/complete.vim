@@ -2,17 +2,53 @@ scriptencoding utf-8
 let s:save_cpo = &cpo
 set cpo&vim
 
+function! s:parse_line(line)
+  return ccline#complete#parse_by(a:line, '\w\+')
+endfunction
+
+function! ccline#complete#parse_by(line, pattern)
+  let keyword = matchstr(a:line, '\zs' . a:pattern . '\ze$')
+  let pos = strchars(a:line) - strchars(keyword)
+  return [pos, keyword]
+endfunction
+
+function! ccline#complete#parse(line)
+  let c = s:get_complete(a:line)
+  if empty(c)
+    return s:parse_line(a:line)
+  endif
+  if type(c) == type({})
+    return call(c.parser, [a:line])
+  endif
+  if !has_key(s:complete, c)
+    return s:parse_line(a:line)
+  endif
+  let Complete = s:complete[c]
+  if type(Complete) == type({})
+    return call(Complete.parser, [a:line])
+  else
+    return s:parse_line(a:line)
+  endif
+endfunction
+
 function! ccline#complete#complete(args)
   let [A, L, P] = a:args
   let backward = strpart(L, 0, P)
   let c = s:get_complete(backward)
-  if has_key(s:complete, c)
-    return call(s:complete[c], a:args)
-  else
-    if empty(c)
-      return []
-    endif
+  if empty(c)
+    return []
+  endif
+  if type(c) == type({})
+    return call(c.completer, a:args)
+  endif
+  if !has_key(s:complete, c)
     return call(c, a:args)
+  endif
+  let Complete = s:complete[c]
+  if type(Complete) == type({})
+    return call(Complete.completer, a:args)
+  else
+    return call(Complete, a:args)
   endif
 endfunction
 

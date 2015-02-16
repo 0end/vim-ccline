@@ -91,6 +91,9 @@ function! s:ccline.get_syntax()
   return s:ccline.line_syntax
 endfunction
 
+function! s:ccline.parse_line(line)
+  return ccline#complete#parse(a:line)
+endfunction
 function! s:ccline.complete_words(args)
   return ccline#complete#complete(a:args)
 endfunction

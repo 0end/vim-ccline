@@ -13,12 +13,6 @@ function! s:module.priority(event)
   return 0
 endfunction
 
-function! s:_parse_line(line)
-  let keyword = matchstr(a:line, '\zs\w\+\ze$')
-  let pos = strchars(a:line) - strchars(keyword)
-  return [pos, keyword]
-endfunction
-
 function! s:_strpart_display(src, start, ...)
   let default_len = strdisplaywidth(a:src) - a:start
   let len = get(a:000, 0, default_len)
@@ -199,7 +193,10 @@ function! s:_get_statuslines(winnrs)
 endfunction
 
 
-function! s:module.get_complete_words(cmdline, args)
+function! s:module.parse_line(cmdline, line)
+  return a:cmdline.parse_line(a:line)
+endfunction
+function! s:module.complete_words(cmdline, args)
   return a:cmdline.complete_words(a:args)
 endfunction
 
@@ -210,9 +207,9 @@ function! s:module.complete(cmdline)
   let s:old_statuslines = s:_get_statuslines(s:bottom_windows)
 
   let backward = a:cmdline.backward()
-  let [pos, keyword] = s:_parse_line(backward)
+  let [pos, keyword] = self.parse_line(a:cmdline, backward)
 
-  let s:complete_list = self.get_complete_words(a:cmdline, [keyword, a:cmdline.getline(), strlen(backward)])
+  let s:complete_list = self.complete_words(a:cmdline, [keyword, a:cmdline.getline(), strlen(backward)])
   if empty(s:complete_list)
     return -1
   endif
