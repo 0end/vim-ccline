@@ -128,6 +128,7 @@ let s:complete = {
 \ 'history': function('ccline#complete#history#complete'),
 \ 'sign': function('ccline#complete#sign#complete'),
 \ 'syntime': function('ccline#complete#syntime#complete'),
+\ 'help': {'completer': function('ccline#complete#help#complete'), 'parser': function('ccline#complete#help#parse')},
 \ 'color': function('ccline#complete#color#complete'),
 \ 'environment': function('ccline#complete#environment#complete'),
 \ 'event': function('ccline#complete#event#complete'),
@@ -136,6 +137,7 @@ let s:complete = {
 \ 'shellcmd': function('ccline#complete#shellcmd#complete'),
 \ 'compiler': function('ccline#complete#compiler#complete'),
 \ 'syntax': function('ccline#complete#syntax#complete'),
+\ 'mapping': {'completer': function('ccline#complete#mapping#complete'), 'parser': function('ccline#complete#mapping#parse')},
 \ 'buffer_word': function('ccline#complete#buffer_word#complete'),
 \ }
 
