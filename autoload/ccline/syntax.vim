@@ -33,7 +33,7 @@ endfunction
 function! s:close_tempbuffer(save)
   let [save_bufnr, save_pos, save_view, save_empty, save_hidden] = a:save
   if save_empty
-    noautocmd silent keepjumps enew
+    silent keepjumps enew
     let &l:bufhidden = save_hidden
     return
   endif
