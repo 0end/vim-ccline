@@ -273,12 +273,20 @@ function! s:module.on_char_pre(cmdline)
   endif
   call a:cmdline.setline(s:line)
   if s:count >= 0
-    call a:cmdline.insert(s:complete_list[s:count], s:pos)
+    if type(s:complete_list[s:count]) == type({})
+      call a:cmdline.insert(s:complete_list[s:count].word, s:pos)
+    else
+      call a:cmdline.insert(s:complete_list[s:count], s:pos)
+    endif
   else
     call a:cmdline.insert(s:keyword, s:pos)
   endif
   if len(s:complete_list) > 1
-    let statuslines = s:_statuslines(s:complete_list, s:count, map(copy(s:bottom_windows), 'winwidth(v:val)'))
+    if type(s:complete_list[0]) == type({})
+      let statuslines = s:_statuslines(map(deepcopy(s:complete_list), 'v:val.abbr'), s:count, map(copy(s:bottom_windows), 'winwidth(v:val)'))
+    else
+      let statuslines = s:_statuslines(s:complete_list, s:count, map(copy(s:bottom_windows), 'winwidth(v:val)'))
+    endif
     call s:_set_statuslines(s:bottom_windows, statuslines)
     redrawstatus
   elseif len(s:complete_list) == 1
