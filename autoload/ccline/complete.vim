@@ -12,6 +12,17 @@ function! ccline#complete#parse_by(line, pattern)
   return [pos, keyword]
 endfunction
 
+function! ccline#complete#parse_arg(line)
+  let [args, spaces] = ccline#command#parse(a:line)
+  if empty(spaces[len(spaces) - 1])
+    let keyword = args[len(args) - 1]
+  else
+    let keyword = ''
+  endif
+  let pos = strchars(a:line) - strchars(keyword)
+  return [pos, keyword]
+endfunction
+
 function! ccline#complete#parse(line)
   let c = s:get_complete(a:line)
   if empty(c)
@@ -139,6 +150,8 @@ let s:complete = {
 \ 'syntax': function('ccline#complete#syntax#complete'),
 \ 'mapping': {'completer': function('ccline#complete#mapping#complete'), 'parser': function('ccline#complete#mapping#parse')},
 \ 'buffer_word': function('ccline#complete#buffer_word#complete'),
+\ 'file': {'completer': function('ccline#complete#file#complete'), 'parser': function('ccline#complete#file#parse')},
+\ 'dir': {'completer': function('ccline#complete#dir#complete'), 'parser': function('ccline#complete#dir#parse')},
 \ }
 
 let &cpo = s:save_cpo
