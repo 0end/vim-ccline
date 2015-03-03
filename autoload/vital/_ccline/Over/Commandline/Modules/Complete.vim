@@ -219,7 +219,7 @@ function! s:module.complete(cmdline)
   else
     let backward = join(split(backward, '\zs')[ : pos-1 ], "")
   endif
-  let s:line = backward . a:cmdline.forward()
+  let s:line = backward . a:cmdline.getline()[a:cmdline.getpos()] . a:cmdline.forward()
   let s:pos = pos
   let s:keyword = keyword
   call a:cmdline.setline(s:line)
