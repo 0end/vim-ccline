@@ -13,7 +13,7 @@ function! ccline#command#command()
 endfunction
 
 function! ccline#command#current(backward)
-  let part = ccline#command#parse(a:backward)[0]
+  let [part, space] = ccline#command#parse(a:backward)
   let exprs = s:split_list(part, '|')
   if empty(exprs)
     return ':'
@@ -22,12 +22,13 @@ function! ccline#command#current(backward)
   if empty(current_expr)
     return ':'
   endif
-  if a:backward !~# '\s$'
+  if empty(space[len(space) - 1])
     call remove(current_expr, len(current_expr) - 1)
   endif
   if empty(current_expr)
     return ':'
   endif
+  let current_expr[0] = s:separate_range(current_expr[0])[1]
   let command = ''
   for expr in current_expr
     let expr = ccline#command#expand_alias(expr)
@@ -180,6 +181,15 @@ function! s:combine(part, space)
   return result + [a:space[len(a:space) - 1]]
 endfunction
 
+" base code
+" https://github.com/thinca/vim-ambicmd/blob/78fa88c5647071e73a3d21e5f575ed408f68aaaf/autoload/ambicmd.vim#L26
+function! s:separate_range(line)
+  let search_pattern = '\v/[^/]*\\@<!%(\\\\)*/|\?[^?]*\\@<!%(\\\\)*\?'
+  let line_specifier = '\v%(\d+|[.$]|''\S|\\[/?&])?%([+-]\d*|' . search_pattern . ')*'
+  let range_pattern = '\v^%(\%|' . line_specifier . '%([;,]' . line_specifier . ')*)'
+  let range = matchstr(a:line, range_pattern)
+  return [range, strpart(a:line, strlen(range))]
+endfunction
 
 function! s:get_user_command()
   let result = {}
