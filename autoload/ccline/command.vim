@@ -12,23 +12,11 @@ function! ccline#command#command()
   return s:command
 endfunction
 
-function! ccline#command#current(backward)
-  let [part, space] = ccline#command#parse(a:backward)
-  let exprs = s:split_list(part, '|')
-  if empty(exprs)
-    return ':'
-  endif
-  let current_expr = exprs[len(exprs) - 1]
+function! ccline#command#current_command(backward)
+  let current_expr = ccline#command#current_expr(a:backward)
   if empty(current_expr)
     return ':'
   endif
-  if empty(space[len(space) - 1])
-    call remove(current_expr, len(current_expr) - 1)
-  endif
-  if empty(current_expr)
-    return ':'
-  endif
-  let current_expr[0] = s:separate_range(current_expr[0])[1]
   let command = ''
   for expr in current_expr
     let expr = ccline#command#expand_alias(expr)
@@ -36,11 +24,31 @@ function! ccline#command#current(backward)
       return ''
     endif
     let command = expr
-    if get(ccline#command#command()[command], 'complete', '') != 'command'
+    if get(ccline#command#command()[command], 'complete', '') !=# 'command'
       return command
     endif
   endfor
   return command
+endfunction
+
+function! ccline#command#current_expr(backward)
+  let [part, space] = ccline#command#parse(a:backward)
+  let exprs = s:split_list(part, '|')
+  if empty(exprs)
+    return []
+  endif
+  let current_expr = exprs[len(exprs) - 1]
+  if empty(current_expr)
+    return []
+  endif
+  if empty(space[len(space) - 1])
+    call remove(current_expr, len(current_expr) - 1)
+  endif
+  if empty(current_expr)
+    return []
+  endif
+  let current_expr[0] = s:separate_range(current_expr[0])[1]
+  return current_expr
 endfunction
 
 function! s:iscommand(expr)
@@ -53,26 +61,32 @@ function! ccline#command#parse(str)
   let space = ' '
   let escape = '\'
   let bar = '|'
+
   let normal = 0
   let single_quote_inner = 1
   let double_quote_inner = 2
+  let space_inner = 3
+
+  let state = space_inner
+
   let endflag = 0
   let escapeflag = 0
-  let spaceflag = 1
-  let state = normal
+
   let result = []
   let spaceresult = []
+
   let part = ''
   let spacepart = ''
+
   for char in split(a:str, '\zs')
     if state == single_quote_inner
-      if char == single_quote
+      if char ==# single_quote
         let endflag = !endflag
         let part .= char
         continue
       else
         if endflag
-          let state = normal
+          let state = (char ==# space) ? space_inner : normal
           let endflag = 0
         else
           let part .= char
@@ -80,13 +94,13 @@ function! ccline#command#parse(str)
         endif
       endif
     elseif state == double_quote_inner
-      if char == double_quote
+      if char ==# double_quote
         let endflag = !endflag
         let part .= char
         continue
       else
         if endflag
-          let state = normal
+          let state = (char ==# space) ? space_inner : normal
           let endflag = 0
         else
           let part .= char
@@ -94,39 +108,40 @@ function! ccline#command#parse(str)
         endif
       endif
     endif
+
+    if state == space_inner
+      if char ==# space
+        let spacepart .= char
+      else
+        let spaceresult += [spacepart]
+        let spacepart = ''
+        let state = normal
+      endif
+    endif
+
     if state == normal
-      if char == single_quote
+      if char ==# single_quote
         let state = single_quote_inner
-        if !empty(part)
-          let result += [part]
-        endif
-        let part = char
-      elseif char == double_quote
+        let part .= char
+      elseif char ==# double_quote
         let state = double_quote_inner
-        if !empty(part)
-          let result += [part]
-        endif
-        let part = char
-      elseif char == space
+        let part .= char
+      elseif char ==# space
         if escapeflag
           let part .= char
           let escapeflag = 0
         else
-          if spaceflag
-            let spacepart .= char
-          else
-            let spaceflag = 1
-            if !empty(part)
-              let result += [part]
-            endif
-            let part = ''
-            let spacepart = char
+          let state = space_inner
+          if !empty(part)
+            let result += [part]
           endif
+          let part = ''
+          let spacepart .= char
         endif
-      elseif char == escape
+      elseif char ==# escape
         let escapeflag = !escapeflag
         let part .= char
-      elseif char == bar
+      elseif char ==# bar
         if escapeflag
           let part .= char
           let escapeflag = 0
@@ -141,19 +156,15 @@ function! ccline#command#parse(str)
         let escapeflag = 0
         let part .= char
       endif
-
-      if char != space && spaceflag
-        let spaceflag = 0
-        let spaceresult += [spacepart]
-      endif
-
     endif
   endfor
   if !empty(part)
     let result += [part]
   endif
-  let spaceresult += [spacepart]
-  if !spaceflag
+  if !empty(spacepart)
+    let spaceresult += [spacepart]
+  endif
+  if state != space_inner
     call add(spaceresult, '')
   endif
   return [result, spaceresult]

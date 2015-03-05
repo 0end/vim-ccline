@@ -64,7 +64,7 @@ function! ccline#complete#complete(args)
 endfunction
 
 function! s:get_complete(backward)
-  let c = ccline#command#current(a:backward)
+  let c = ccline#command#current_command(a:backward)
   if c == ':'
     return 'command'
   endif
