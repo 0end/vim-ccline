@@ -4,3 +4,5 @@ ccline
 Over.Commandline
 Over.Commandline.Modules.DrawColorfulCommandline
 Over.Commandline.Modules.Complete
+Over.Commandline.Modules.CCLineHistory
+Over.Commandline.Modules.CCLineDelete

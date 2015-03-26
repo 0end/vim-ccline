@@ -8,7 +8,7 @@ let s:cmdline = vital#of("ccline").import("Over.Commandline")
 let s:ccline = s:cmdline.make_default()
 call s:ccline.connect("Paste")
 call s:ccline.connect("Cancel")
-call s:ccline.connect("Delete")
+
 call s:ccline.connect("CursorMove")
 call s:ccline.connect("InsertRegister")
 call s:ccline.connect(s:cmdline.make_module("NoInsert", ""))
@@ -20,8 +20,8 @@ call s:ccline.connect("Complete")
 call s:ccline.connect(s:cmdline.make_module("Doautocmd", "CCLine"))
 
 let s:execute = {
-\ "name" : "CCLineExecute",
-\}
+\ "name": "CCLineExecute",
+\ }
 function! s:execute.priority(event)
   if a:event == "on_char_pre"
     return 2
@@ -54,14 +54,8 @@ function! s:execute.execute(cmdline)
 endfunction
 call s:ccline.connect(s:execute)
 
-let s:history = s:cmdline.make_module("History", ":")
-function! s:history.histories()
-  if histnr(self.mode) < 1
-    return []
-  endif
-  return map(range(1, &history), 'histget(self.mode, v:val * -1)')
-endfunction
-call s:ccline.connect(s:history)
+call s:ccline.connect("CCLineHistory")
+call s:ccline.connect("CCLineDelete")
 
 let s:histadd = s:cmdline.make_module("HistAdd", ":")
 function! s:histadd.on_enter(cmdline)
