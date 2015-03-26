@@ -6,8 +6,6 @@ set cpo&vim
 let s:cmdline = vital#of("ccline").import("Over.Commandline")
 
 let s:ccline = s:cmdline.make_default()
-call s:ccline.connect(s:cmdline.make_module("History", ":"))
-call s:ccline.connect(s:cmdline.make_module("HistAdd", ":"))
 call s:ccline.connect("Paste")
 call s:ccline.connect("Cancel")
 call s:ccline.connect("Delete")
@@ -56,6 +54,30 @@ function! s:execute.execute(cmdline)
 endfunction
 call s:ccline.connect(s:execute)
 
+let s:history = s:cmdline.make_module("History", ":")
+function! s:history.histories()
+  if histnr(self.mode) < 1
+    return []
+  endif
+  return map(range(1, &history), 'histget(self.mode, v:val * -1)')
+endfunction
+call s:ccline.connect(s:history)
+
+let s:histadd = s:cmdline.make_module("HistAdd", ":")
+function! s:histadd.on_enter(cmdline)
+  let self.failed = 0
+endfunction
+function! s:histadd.on_execute_failed(cmdline)
+  let self.failed = 1
+endfunction
+function! s:histadd.on_leave(cmdline)
+  if self.failed
+    return
+  endif
+  call histadd(self.mode, a:cmdline.getline())
+endfunction
+call s:ccline.connect(s:histadd)
+
 let s:ccline.suffix_highlight = "CCLineCommandLineSuffix"
 execute "highlight link " . s:ccline.suffix_highlight . " Comment"
 
@@ -85,10 +107,10 @@ function! s:ccline.on_draw_pre(cmdline)
 endfunction
 
 function! s:ccline.set_syntax(syntax)
-  let s:ccline.line_syntax = a:syntax
+  let self.line_syntax = a:syntax
 endfunction
 function! s:ccline.get_syntax()
-  return s:ccline.line_syntax
+  return self.line_syntax
 endfunction
 
 function! s:ccline.parse_line(line)
@@ -108,7 +130,7 @@ function! ccline#session_id()
 endfunction
 
 function! s:ccline.on_enter(cmdline)
-  let s:ccline.line_syntax = [{'str': '', 'syntax': 'None'}]
+  let self.line_syntax = [{'str': '', 'syntax': 'None'}]
   let s:session_id += 1
 endfunction
 

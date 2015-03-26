@@ -8,10 +8,7 @@ let s:module = {
 \}
 
 function! s:module.histories()
-  if histnr(self.mode) < 1
-    return []
-  endif
-  return map(range(1, histnr(self.mode)), 'histget(self.mode, -1 * v:val)')
+	return map(range(1, &history), 'histget(self.mode, v:val * -1)')
 endfunction
 
 function! s:_should_match_cmdline(cmdline)
@@ -34,22 +31,21 @@ function! s:module.on_char_pre(cmdline)
 	\	&& !a:cmdline.is_input("\<C-p>") && !a:cmdline.is_input("\<C-n>")
 		call s:_reset()
 		return
-	endif
-	if s:count == 0 && empty(s:cmdhist)
-	\	|| s:is_match_mode != s:_should_match_cmdline(a:cmdline)
-		let cmdline = '^' . a:cmdline.getline()
-		let s:is_match_mode = s:_should_match_cmdline(a:cmdline)
-		" let s:cmdhist = [a:cmdline.getline()] + (s:is_match_mode ?
-		" \	filter(self.histories(), 'v:val =~ cmdline') : self.histories())
-		let s:cmdhist = [a:cmdline.getline()] + filter(self.histories(),
-		\ (s:is_match_mode && !empty(a:cmdline.getline()) ? 'v:val =~ cmdline' : '!empty(v:val)'))
+	else
+		if s:count == 0 && empty(s:cmdhist)
+		\	|| s:is_match_mode != s:_should_match_cmdline(a:cmdline)
+			let cmdline = '^' . a:cmdline.getline()
+			let s:is_match_mode = s:_should_match_cmdline(a:cmdline)
+			let s:cmdhist = [a:cmdline.getline()] + (s:is_match_mode ?
+			\	filter(self.histories(), 'v:val =~ cmdline') : self.histories())
+		endif
 	endif
 	call a:cmdline.setchar("")
 	if a:cmdline.is_input("\<Down>") || a:cmdline.is_input("\<C-n>")
 		let s:count = max([s:count - 1, 0])
 	endif
 	if a:cmdline.is_input("\<Up>") || a:cmdline.is_input("\<C-p>")
-		let s:count = min([s:count + 1, len(s:cmdhist) - 1])
+		let s:count = min([s:count + 1, len(s:cmdhist)])
 	endif
 	call a:cmdline.setline(get(s:cmdhist, s:count, a:cmdline.getline()))
 endfunction
