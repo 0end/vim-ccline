@@ -2,8 +2,34 @@ scriptencoding utf-8
 let s:save_cpo = &cpo
 set cpo&vim
 
-function! s:parse_line(line)
-  return ccline#complete#parse_by(a:line, '\w\+')
+function! s:last(list, default) abort
+  if empty(a:list)
+    return a:default
+  endif
+  return a:list[len(a:list) - 1]
+endfunction
+
+function! s:parse(cmdline)
+  let line = a:cmdline.backward()
+  let expr = a:cmdline.commandline.current_expr(a:cmdline.getpos())
+  if !empty(expr[2])
+    let current_arg = s:last(expr[2], 1)
+    if !empty(current_arg[1])
+      return [strchars(line), '']
+    endif
+    let keyword = current_arg[0]
+    let pos = strchars(line) - strchars(keyword) - strchars(current_arg[1])
+    return [pos, keyword]
+  endif
+  if !empty(expr[1])
+    let current_command = expr[1][len(expr[1]) - 1]
+    if empty(current_command[2]) && empty(current_command[3])
+      let keyword = current_command[1]
+      let pos = strchars(line) - strchars(keyword) - strchars(current_command[2]) - strchars(current_command[3])
+      return [pos, keyword]
+    endif
+  endif
+  return [strchars(line), '']
 endfunction
 
 function! ccline#complete#parse_by(line, pattern)
@@ -12,67 +38,49 @@ function! ccline#complete#parse_by(line, pattern)
   return [pos, keyword]
 endfunction
 
-function! ccline#complete#parse_arg(line)
-  let [args, spaces] = ccline#command#parse(a:line)
-  if empty(spaces[len(spaces) - 1])
-    let keyword = args[len(args) - 1]
-  else
-    let keyword = ''
+function! ccline#complete#complete(cmdline)
+  let current_command = a:cmdline.commandline.current_command(a:cmdline.getpos())
+  if empty(current_command)
+    return deepcopy(s:default_dict)
   endif
-  let pos = strchars(a:line) - strchars(keyword)
-  return [pos, keyword]
+  if current_command == ':'
+    return extend(deepcopy(s:default_dict), ccline#complete#command#define())
+  endif
+  let cmd = ccline#command#get(current_command)
+  let complete =  cmd.complete
+  if empty(complete)
+    return deepcopy(s:default_dict)
+  endif
+  let nargs = cmd.nargs
+  if nargs ==# '0'
+    return deepcopy(s:default_dict)
+  elseif nargs ==# '1' || nargs ==# '?'
+    let args = a:cmdline.commandline.current_expr(a:cmdline.getpos())[2]
+    if len(args) - empty(s:last(args, ['', ''])[1]) > 0
+      return deepcopy(s:default_dict)
+    endif
+  endif
+  return extend(deepcopy(s:default_dict), ccline#complete#{complete}#define())
 endfunction
 
-function! ccline#complete#parse(line)
-  let c = s:get_complete(a:line)
-  if empty(c)
-    return s:parse_line(a:line)
-  endif
-  if type(c) == type({})
-    return call(c.parser, [a:line])
-  endif
-  if !has_key(s:complete, c)
-    return s:parse_line(a:line)
-  endif
-  let Complete = s:complete[c]
-  if type(Complete) == type({})
-    return call(Complete.parser, [a:line])
-  else
-    return s:parse_line(a:line)
-  endif
+let s:default_dict = {
+\ 'session_id': 0
+\ }
+function! s:default_dict.init() abort
+endfunction
+function! s:default_dict.parse(cmdline) abort
+  return s:parse(a:cmdline)
+endfunction
+function! s:default_dict.complete(arg, line, pos, args) abort
+  return []
+endfunction
+function! s:default_dict.display(candidate) abort
+  return a:candidate
+endfunction
+function! s:default_dict.insert(candidate) abort
+  return a:candidate
 endfunction
 
-function! ccline#complete#complete(args)
-  let [A, L, P] = a:args
-  let backward = strpart(L, 0, P)
-  let c = s:get_complete(backward)
-  if empty(c)
-    return []
-  endif
-  if type(c) == type({})
-    return call(c.completer, a:args)
-  endif
-  if !has_key(s:complete, c)
-    return call(c, a:args)
-  endif
-  let Complete = s:complete[c]
-  if type(Complete) == type({})
-    return call(Complete.completer, a:args)
-  else
-    return call(Complete, a:args)
-  endif
-endfunction
-
-function! s:get_complete(backward)
-  let c = ccline#command#current_command(a:backward)
-  if c == ':'
-    return 'command'
-  endif
-  if empty(c)
-    return ''
-  endif
-  return get(ccline#command#command()[c], 'complete', '')
-endfunction
 
 function! ccline#complete#capture(cmd)
   let save_verbose = &verbose
@@ -95,14 +103,8 @@ function! ccline#complete#uniq(list)
   return keys(dict)
 endfunction
 
-function! ccline#complete#option(dict, key, delimiter, value, A, L, P)
-  let backward = strpart(a:L, 0, a:P)
-  let option = matchlist(backward, '\s\(' . a:key . '\)\s*\%(' . a:delimiter . '\)\(' . a:value . '\)$')
-  if !empty(option) && has_key(a:dict, option[1])
-    return sort(ccline#complete#forward_matcher(a:dict[option[1]], option[2]))
-  else
-    return sort(ccline#complete#forward_matcher(keys(a:dict), a:A))
-  endif
+function! ccline#complete#last_option_pair(expr, key_pattern, delimiter_pattern, value_pattern)
+  return matchlist(a:expr, '\(' . a:key_pattern . '\)\%(' . a:delimiter_pattern . '\)\%(\%(' . a:value_pattern . '\),\)*\(' . a:value_pattern . '\)$')
 endfunction
 
 function! ccline#complete#forward_matcher(list, string)
@@ -127,32 +129,6 @@ function! ccline#complete#forward_matcher(list, string)
     return result
   endif
 endfunction
-
-let s:complete = {
-\ 'command': function('ccline#complete#command#complete'),
-\ 'function': function('ccline#complete#function#complete'),
-\ 'augroup': function('ccline#complete#augroup#complete'),
-\ 'buffer': function('ccline#complete#buffer#complete'),
-\ 'option': function('ccline#complete#option#complete'),
-\ 'behave': function('ccline#complete#behave#complete'),
-\ 'cscope': function('ccline#complete#cscope#complete'),
-\ 'history': function('ccline#complete#history#complete'),
-\ 'sign': function('ccline#complete#sign#complete'),
-\ 'syntime': function('ccline#complete#syntime#complete'),
-\ 'help': {'completer': function('ccline#complete#help#complete'), 'parser': function('ccline#complete#help#parse')},
-\ 'color': function('ccline#complete#color#complete'),
-\ 'environment': function('ccline#complete#environment#complete'),
-\ 'event': function('ccline#complete#event#complete'),
-\ 'filetype': function('ccline#complete#filetype#complete'),
-\ 'highlight': function('ccline#complete#highlight#complete'),
-\ 'shellcmd': function('ccline#complete#shellcmd#complete'),
-\ 'compiler': function('ccline#complete#compiler#complete'),
-\ 'syntax': function('ccline#complete#syntax#complete'),
-\ 'mapping': {'completer': function('ccline#complete#mapping#complete'), 'parser': function('ccline#complete#mapping#parse')},
-\ 'buffer_word': function('ccline#complete#buffer_word#complete'),
-\ 'file': {'completer': function('ccline#complete#file#complete'), 'parser': function('ccline#complete#file#parse')},
-\ 'dir': {'completer': function('ccline#complete#dir#complete'), 'parser': function('ccline#complete#dir#parse')},
-\ }
 
 let &cpo = s:save_cpo
 unlet s:save_cpo

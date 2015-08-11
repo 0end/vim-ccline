@@ -1,3 +1,49 @@
+let s:source = {}
+
+function! ccline#complete#highlight#define() abort
+  return deepcopy(s:source)
+endfunction
+
+function! s:source.init() abort
+  let s:group_name = map(filter(split(ccline#complete#capture('highlight'), '\n'), 'stridx(v:val, " ") != 0'), 'strpart(v:val, 0, stridx(v:val, " "))')
+endfunction
+
+function! s:source.parse(cmdline) abort
+  return ccline#complete#parse_by(a:cmdline.backward(), '\w\+')
+endfunction
+
+function! s:source.insert(candidate) abort
+  if has_key(s:dict, a:candidate)
+    return a:candidate . '='
+  endif
+  return a:candidate
+endfunction
+
+function! s:source.complete(cmdline, arg, line, pos) abort
+  let args = a:cmdline.commandline.current_expr(a:pos)[2]
+  let len = len(args)
+  let len -= len > 0 && empty(args[len - 1][1])
+  if len == 0
+    return sort(ccline#complete#forward_matcher(s:group_name + [s:clear, s:default], a:arg))
+  endif
+  if args[0][0] ==# s:clear
+    if len == 1
+      return sort(ccline#complete#forward_matcher(s:group_name, a:arg))
+    else
+      return []
+    endif
+  endif
+  if args[0][0] ==# s:default && len == 1
+    return sort(ccline#complete#forward_matcher(s:group_name, a:arg))
+  endif
+  let o = ccline#complete#last_option_pair(ccline#list2str(a:cmdline.commandline.current_expr(a:pos)[2]), '[a-z]\+', '\s*=\s*', '\w*')
+  if empty(o)
+    return sort(ccline#complete#forward_matcher(keys(s:dict), a:arg))
+  else
+    return sort(ccline#complete#forward_matcher(s:dict[o[1]], o[2]))
+  endif
+endfunction
+
 let s:attr_list = ['bold', 'underline', 'undercurl', 'reverse', 'inverse', 'italic', 'standout', 'NONE']
 
 let s:cterm_colors = [
@@ -49,33 +95,3 @@ let s:dict = {
 
 let s:clear = 'clear'
 let s:default = 'default'
-
-function! ccline#complete#highlight#complete(A, L, P)
-  if !exists('s:session_id') || ccline#session_id() > s:session_id
-    let s:group_name = map(filter(split(ccline#complete#capture('highlight'), '\n'), 'stridx(v:val, " ") != 0'), 'strpart(v:val, 0, stridx(v:val, " "))')
-    let s:session_id = ccline#session_id()
-  endif
-  let args = split(strpart(a:L, 0, a:P))[1 :]
-  if !empty(a:A)
-    call remove(args, len(args) - 1)
-  endif
-  let g:test = args
-  if len(args) == 0
-    return sort(ccline#complete#forward_matcher(s:group_name + [s:clear, s:default], a:A))
-  endif
-  if args[0] ==# s:clear
-    if len(args) == 1
-      return sort(ccline#complete#forward_matcher(s:group_name, a:A))
-    else
-      return []
-    endif
-  endif
-  if args[0] ==# s:default
-    if len(args) == 1
-      return sort(ccline#complete#forward_matcher(s:group_name, a:A))
-    else
-      return ccline#complete#option(s:dict, '[a-z]\+', '=', '\w*', a:A, a:L, a:P)
-    endif
-  endif
-  return ccline#complete#option(s:dict, '[a-z]\+', '=', '\w*', a:A, a:L, a:P)
-endfunction

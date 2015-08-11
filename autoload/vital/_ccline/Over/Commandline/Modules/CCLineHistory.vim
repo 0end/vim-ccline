@@ -8,6 +8,9 @@ let s:module = {
 \}
 
 function! s:module.histories()
+  if histnr(self.mode) < 1
+    return []
+  endif
   return map(range(1, histnr(self.mode)), 'histget(self.mode, -1 * v:val)')
 endfunction
 

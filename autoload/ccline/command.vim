@@ -3,259 +3,33 @@ scriptencoding utf-8
 let s:save_cpo = &cpo
 set cpo&vim
 
-function! ccline#command#command()
-  if !exists('s:session_id') || ccline#session_id() > s:session_id
-    let s:user_command = s:get_user_command()
-    let s:command = extend(deepcopy(s:default_command), s:user_command)
-    let s:session_id = ccline#session_id()
+function! ccline#command#refresh() abort
+  let s:user_commands = s:get_user_commands()
+  let s:commands = extend(copy(s:default_commands), s:user_commands)
+endfunction
+
+function! s:commands()
+  if !exists('s:commands')
+    call ccline#command#refresh()
   endif
-  return s:command
+  return s:commands
 endfunction
 
-function! ccline#command#current_command(str)
-  let exprs = s:parse_line(a:str)
-  if empty(exprs)
-    return ':'
-  endif
-  let expr = exprs[len(exprs) - 1]
-  let commands = expr[1]
-  let current_command = commands[len(commands) - 1][1]
-  if empty(current_command)
-    return ':'
-  endif
-  return ccline#command#expand_alias(current_command)
+function! ccline#command#iscommand(expr)
+  return has_key(s:commands(), a:expr)
 endfunction
 
-function! s:iscommand(expr)
-  return has_key(ccline#command#command(), a:expr)
+function! ccline#command#get(expr) abort
+  let expr = ccline#command#expand_alias(a:expr)
+  let command = get(s:commands(), expr, {})
+  return extend(deepcopy(s:default_command), command)
 endfunction
 
-function! ccline#command#parse(str)
-  let single_quote = "'"
-  let double_quote = '"'
-  let space = ' '
-  let escape = '\'
-  let bar = '|'
-
-  let normal = 0
-  let single_quote_inner = 1
-  let double_quote_inner = 2
-  let space_inner = 3
-
-  let state = space_inner
-
-  let endflag = 0
-  let escapeflag = 0
-
-  let result = []
-  let spaceresult = []
-
-  let part = ''
-  let spacepart = ''
-
-  for char in split(a:str, '\zs')
-    if state == single_quote_inner
-      if char ==# single_quote
-        let endflag = !endflag
-        let part .= char
-        continue
-      else
-        if endflag
-          let state = (char ==# space) ? space_inner : normal
-          let endflag = 0
-        else
-          let part .= char
-          continue
-        endif
-      endif
-    elseif state == double_quote_inner
-      if char ==# double_quote
-        let endflag = !endflag
-        let part .= char
-        continue
-      else
-        if endflag
-          let state = (char ==# space) ? space_inner : normal
-          let endflag = 0
-        else
-          let part .= char
-          continue
-        endif
-      endif
-    endif
-
-    if state == space_inner
-      if char ==# space
-        let spacepart .= char
-      else
-        let spaceresult += [spacepart]
-        let spacepart = ''
-        let state = normal
-      endif
-    endif
-
-    if state == normal
-      if char ==# single_quote
-        let state = single_quote_inner
-        let part .= char
-      elseif char ==# double_quote
-        let state = double_quote_inner
-        let part .= char
-      elseif char ==# space
-        if escapeflag
-          let part .= char
-          let escapeflag = 0
-        else
-          let state = space_inner
-          if !empty(part)
-            let result += [part]
-          endif
-          let part = ''
-          let spacepart .= char
-        endif
-      elseif char ==# escape
-        let escapeflag = !escapeflag
-        let part .= char
-      elseif char ==# bar
-        if escapeflag
-          let part .= char
-          let escapeflag = 0
-        else
-          if !empty(part)
-            let result += [part]
-          endif
-          let result += [char]
-          let part = ''
-        endif
-      else
-        let escapeflag = 0
-        let part .= char
-      endif
-    endif
-  endfor
-  if !empty(part)
-    let result += [part]
-  endif
-  if !empty(spacepart)
-    let spaceresult += [spacepart]
-  endif
-  if state != space_inner
-    call add(spaceresult, '')
-  endif
-  return [result, spaceresult]
+function! ccline#command#commands() abort
+  return keys(s:commands())
 endfunction
 
-function! s:split_list(list, separator)
-  let result = []
-  let e = 0
-  for i in range(len(a:list))
-    if a:list[i] ==# a:separator
-      let result += [a:list[e : i - 1]]
-      let e = i + 1
-    endif
-  endfor
-  let result += [a:list[e : len(a:list) - 1]]
-  return result
-endfunction
-
-function! s:combine(part, space)
-  let result = []
-  for i in range(len(a:part))
-    let result += [a:space[i], a:part[i]]
-  endfor
-  " return result + [a:space[i + 1]]
-  return result + [a:space[len(a:space) - 1]]
-endfunction
-
-" base code
-" https://github.com/thinca/vim-ambicmd/blob/78fa88c5647071e73a3d21e5f575ed408f68aaaf/autoload/ambicmd.vim#L26
-function! s:separate_range(line)
-  let search_pattern = '\v/[^/]*\\@<!%(\\\\)*/|\?[^?]*\\@<!%(\\\\)*\?'
-  let line_specifier = '\v%(\d+|[.$]|''\S|\\[/?&])?%([+-]\d*|' . search_pattern . ')*'
-  let range_pattern = '\v^%(\%|' . line_specifier . '%([;,]' . line_specifier . ')*)'
-  let range = matchstr(a:line, range_pattern)
-  return [range, strpart(a:line, strlen(range))]
-endfunction
-
-function! s:separate_bang(expr)
-  let bang = matchstr(a:expr, '^\a\+\zs!$')
-  return [strpart(a:expr, 0, strlen(a:expr) - strlen(bang)), bang]
-endfunction
-
-function! s:extract_command(line)
-  let command = s:separate_range(a:line)
-  let command = [command[0]] + s:separate_bang(matchstr(command[1], '^\a\+!\?'))
-  return command
-endfunction
-
-function! s:parse_args(str, bar)
-  let result = []
-  let pos = 0
-  let escape_pat = '\%(\\\\\)*\\'
-  let escape_space_pat = escape_pat . '\@<=\s'
-  let escape_bar_pat = escape_pat . '\@<=|'
-  let nonspace_pat = a:bar ? '^\%([^|[:blank:]]\|' . escape_space_pat . '\|' . escape_bar_pat . '\)*'
-  \                        : '^\%(\S\|' . escape_space_pat . '\)*'
-  while pos < strlen(a:str)
-    let p = matchstr(a:str, nonspace_pat, pos)
-    let pos += strlen(p)
-    let s = matchstr(a:str, '\s*', pos)
-    let pos += strlen(s)
-    let result += [[p, s]]
-    if a:bar && match(a:str, '^|', pos) == pos
-      break
-    endif
-  endwhile
-  return result
-endfunction
-
-function! s:parse_line(line)
-  let result = []
-  let expr = ['', [], []]
-  let commands = []
-  let on_command = 1
-  let start_expr = 1
-  let bar = 0
-  let pos = 0
-  while pos < strlen(a:line)
-    if start_expr
-      let bar = matchstr(strpart(a:line, pos), '^\(\s\||\)*')
-      let pos += strlen(bar)
-      let expr[0] = bar
-    endif
-    if on_command
-      let command = s:extract_command(strpart(a:line, pos))
-      let pos += strlen(join(command, ''))
-      let space = matchstr(strpart(a:line, pos), '^\s*')
-      let commands += [command + [space]]
-      let pos += strlen(space)
-      let cmd = ccline#command#expand_alias(command[1])
-      if has_key(ccline#command#command(), cmd)
-        let c = ccline#command#command()[cmd]
-        let on_command = (get(c, 'complete', '') ==# 'command')
-        let bar = get(c, 'bar', 0)
-      else
-        let on_command = 0
-        let bar = 0
-      endif
-      let expr[1] += commands
-      let commands = []
-      let start_expr = 0
-    else
-      let args = s:parse_args(strpart(a:line, pos), bar)
-      let expr[2] = args
-      let pos += strlen(join(map(copy(args), 'join(v:val, "")'), ''))
-      let result += [expr]
-      let expr = ['', [], []]
-      let start_expr = 1
-      let on_command = 1
-    endif
-  endwhile
-  let result += [expr]
-  return result
-endfunction
-
-function! s:get_user_command()
+function! s:get_user_commands()
   let result = {}
   let command = split(ccline#complete#capture('command'), '[\r\n]')
   call remove(command, 0)
@@ -265,6 +39,7 @@ function! s:get_user_command()
   endfor
   return result
 endfunction
+
 function! s:parse_command_list(line)
   let first = strpart(a:line, 0, 2)
   let bang = (stridx(first, '!') >= 0)
@@ -274,17 +49,26 @@ function! s:parse_command_list(line)
   let name_len = strlen(name)
   if name_len <= 11
     let args = strpart(a:line, 16, 1)
-    let range = matchstr(strpart(a:line, 21), '^\S\+')
-    let complete = matchstr(strpart(a:line, 27), '^\S\+')
+    let address = matchstr(strpart(a:line, 21), '^\S\+')
+    let complete = matchstr(strpart(a:line, 37), '^\S\+')
   else
-    let args = strpart(a:line, name_len+5, 1)
-    let range = matchstr(strpart(a:line, name_len+10), '^\S\+')
-    let complete = matchstr(strpart(a:line, name_len+16), '^\S\+')
+    let args = strpart(a:line, name_len+1, 1)
+    let address = matchstr(strpart(a:line, name_len+6), '^\S\+')
+    let complete = matchstr(strpart(a:line, name_len+22), '^\S\+')
   endif
-  return [name, {'bang': bang, 'register': register, 'buffer_local': buffer_local, 'args': args, 'range': range, 'complete': complete}]
+  if strpart(address, strlen(address) - 1) ==# 'c'
+    let range = ''
+    let l:count = strpart(address, 0, strlen(address) - 1)
+  else
+    let range = address
+    let l:count = ''
+  endif
+  return [name, {'bang': bang, 'register': register, 'buffer': buffer_local, 'nargs': args, 'range': range, 'count': l:count, 'complete': complete}]
 endfunction
 
-let s:default_command = {
+let s:default_command = {'bar': 0, 'bang': 0, 'register': 0, 'buffer': 0, 'nargs': '0', 'range': '', 'count': '', 'complete': '', 'syntax': ''}
+
+let s:default_commands = {
 \ '!': {'bar': 1, 'complete': 'shellcmd'},
 \ '#': {'bar': 1},
 \ '&': {'bar': 1},
@@ -305,28 +89,26 @@ let s:default_command = {
 \ 'append': {'bar': 1},
 \ 'argadd': {'bar': 1, 'complete': 'file'},
 \ 'argdelete': {'bar': 1, 'complete': 'file'},
-\ 'argdo': {'bar': 0, 'complete': 'command'},
-\ 'argedit': {'bar': 1, 'complete': 'file'},
-\ 'argglobal': {'bar': 1, 'complete': 'file'},
-\ 'arglocal': {'bar': 1, 'complete': 'file'},
+\ 'argdo': {'bang': 1, 'bar': 0, 'complete': 'command'},
+\ 'argedit': {'bang': 1, 'bar': 1, 'complete': 'file'},
+\ 'argglobal': {'bang': 1, 'bar': 1, 'complete': 'file'},
+\ 'arglocal': {'bang': 1, 'bar': 1, 'complete': 'file'},
 \ 'args': {'bar': 1, 'complete': 'file'},
 \ 'argument': {'bar': 1, 'complete': ''},
 \ 'ascii': {'bar': 1, 'complete': ''},
 \ 'augroup': {'bar': 1, 'complete': 'augroup'},
 \ 'aunmenu': {'bar': 1},
 \ 'autocmd': {'bar': 0, 'complete': 'event'},
-\ 'bNext': {'bar': 1},
 \ 'badd': {'bar': 1},
 \ 'ball': {'bar': 1},
 \ 'bdelete': {'bar': 1},
 \ 'behave': {'bar': 1, 'complete': 'behave'},
 \ 'belowright': {'bar': 1},
-\ 'bfirst': {'bar': 1},
 \ 'blast': {'bar': 1},
 \ 'bmodified': {'bar': 1},
 \ 'bnext': {'bar': 1},
 \ 'botright': {'bar': 1},
-\ 'bprevious': {'bar': 1},
+\ 'bprevious': {'bang': 1, 'bar': 1},
 \ 'break': {'bar': 1, 'complete': ''},
 \ 'breakadd': {'bar': 1},
 \ 'breakdel': {'bar': 1},
@@ -334,7 +116,7 @@ let s:default_command = {
 \ 'brewind': {'bar': 1},
 \ 'browse': {'bar': 1},
 \ 'bufdo': {'bar': 0},
-\ 'buffer': {'bar': 1, 'complete': 'buffer'},
+\ 'buffer': {'bar': 1, 'complete': 'buffer', 'nargs': '?'},
 \ 'buffers': {'bar': 1},
 \ 'bunload': {'bar': 1},
 \ 'bwipeout': {'bar': 1},
@@ -345,12 +127,12 @@ let s:default_command = {
 \ 'caddbuffer': {'bar': 1},
 \ 'caddexpr': {'bar': 1},
 \ 'caddfile': {'bar': 1},
-\ 'call': {'bar': 1, 'complete': 'function'},
-\ 'catch': {'bar': 1, 'complete': ''},
+\ 'call': {'bar': 1, 'complete': 'function', 'range': '%', 'nargs': '1'},
+\ 'catch': {'bar': 1, 'complete': '', 'nargs': '?'},
 \ 'cbuffer': {'bar': 1},
-\ 'cc': {'bar': 1, 'complete': ''},
+\ 'cc': {'bar': 1, 'complete': '', 'nargs': '?'},
 \ 'cclose': {'bar': 1},
-\ 'cd': {'bar': 1, 'complete': 'dir'},
+\ 'cd': {'bang': 1, 'bar': 1, 'complete': 'dir', 'nargs': '?'},
 \ 'center': {'bar': 1},
 \ 'cexpr': {'bar': 1},
 \ 'cfile': {'bar': 1},
@@ -360,23 +142,22 @@ let s:default_command = {
 \ 'cgetfile': {'bar': 1},
 \ 'change': {'bar': 1},
 \ 'changes': {'bar': 1},
-\ 'chdir': {'bar': 1, 'complete': 'dir'},
 \ 'checkpath': {'bar': 1},
 \ 'checktime': {'bar': 1},
 \ 'clast': {'bar': 1},
 \ 'clist': {'bar': 1},
 \ 'close': {'bar': 1},
-\ 'cmap': {'bar': 1, 'complete': 'mapping'},
+\ 'cmap': {'bar': 1, 'complete': 'mapping', 'nargs': '*'},
 \ 'cmapclear': {'bar': 1, 'complete': ''},
 \ 'cmenu': {'bar': 1},
 \ 'cnewer': {'bar': 1},
 \ 'cnext': {'bar': 1},
 \ 'cnfile': {'bar': 1},
 \ 'cnoreabbrev': {'bar': 1},
-\ 'cnoremap': {'bar': 1, 'complete': 'mapping'},
+\ 'cnoremap': {'bar': 1, 'complete': 'mapping', 'nargs': '*'},
 \ 'cnoremenu': {'bar': 1},
 \ 'colder': {'bar': 1},
-\ 'colorscheme': {'bar': 1, 'complete': 'color'},
+\ 'colorscheme': {'bar': 1, 'complete': 'color', 'nargs': '?'},
 \ 'comclear': {'bar': 1},
 \ 'command': {'bar': 0, 'complete': 'command'},
 \ 'compiler': {'bar': 1, 'complete': 'compiler'},
@@ -391,7 +172,7 @@ let s:default_command = {
 \ 'cscope': {'bar': 0, 'complete': 'cscope'},
 \ 'cstag': {'bar': 1},
 \ 'cunabbrev': {'bar': 1},
-\ 'cunmap': {'bar': 1, 'complete': 'mapping'},
+\ 'cunmap': {'bar': 1, 'complete': 'mapping', 'nargs': '1'},
 \ 'cunmenu': {'bar': 1},
 \ 'cwindow': {'bar': 1},
 \ 'debug': {'bar': 0},
@@ -417,13 +198,13 @@ let s:default_command = {
 \ 'dsearch': {'bar': 1},
 \ 'dsplit': {'bar': 1},
 \ 'earlier': {'bar': 1},
-\ 'echo': {'bar': 1, 'complete': 'function'},
-\ 'echoerr': {'bar': 1, 'complete': 'function'},
-\ 'echohl': {'bar': 1, 'complete': 'highlight'},
-\ 'echomsg': {'bar': 1, 'complete': 'function'},
-\ 'echon': {'bar': 1, 'complete': 'function'},
-\ 'edit': {'bar': 1, 'complete': 'file'},
-\ 'else': {'bar': 1, 'complete': ''},
+\ 'echo': {'bar': 1, 'complete': 'function', 'nargs': '*'},
+\ 'echoerr': {'bar': 1, 'complete': 'function', 'nargs': '*'},
+\ 'echohl': {'bar': 1, 'complete': 'highlight', 'nargs': '?'},
+\ 'echomsg': {'bar': 1, 'complete': 'function', 'nargs': '*'},
+\ 'echon': {'bar': 1, 'complete': 'function', 'nargs': '*'},
+\ 'edit': {'bar': 1, 'complete': 'file', 'syntax': 'file', 'nargs': '*'},
+\ 'else': {'bar': 1, 'complete': '', 'nargs': '0'},
 \ 'elseif': {'bar': 1},
 \ 'emenu': {'bar': 1},
 \ 'endfor': {'bar': 1, 'complete': ''},
@@ -431,18 +212,17 @@ let s:default_command = {
 \ 'endif': {'bar': 1, 'complete': ''},
 \ 'endtry': {'bar': 1, 'complete': ''},
 \ 'endwhile': {'bar': 1, 'complete': ''},
-\ 'enew': {'bar': 1, 'complete': ''},
+\ 'enew': {'bang': 1, 'bar': 1, 'complete': ''},
 \ 'ex': {'bar': 1},
 \ 'execute': {'bar': 1},
-\ 'exit': {'bar': 1},
 \ 'exusage': {'bar': 1},
-\ 'file': {'bar': 1},
+\ 'file': {'bang': 1, 'bar': 1},
 \ 'files': {'bar': 1},
 \ 'filetype': {'bar': 1},
 \ 'finally': {'bar': 1},
-\ 'find': {'bar': 1},
+\ 'find': {'bang': 1, 'bar': 1},
 \ 'finish': {'bar': 1, 'complete': ''},
-\ 'first': {'bar': 1, 'complete': ''},
+\ 'first': {'bang': 1, 'bar': 1, 'complete': ''},
 \ 'fixdel': {'bar': 1},
 \ 'fold': {'bar': 1, 'complete': ''},
 \ 'foldclose': {'bar': 1, 'complete': ''},
@@ -458,30 +238,30 @@ let s:default_command = {
 \ 'gui': {'bar': 1},
 \ 'gvim': {'bar': 1},
 \ 'hardcopy': {'bar': 1},
-\ 'help': {'bar': 0, 'complete': 'help'},
+\ 'help': {'bang': 1, 'bar': 0, 'complete': 'help', 'range': '', 'syntax': 'help', 'nargs': '?'},
 \ 'helpfind': {'bar': 0, 'complete': ''},
 \ 'helpgrep': {'bar': 1, 'complete': ''},
-\ 'helptags': {'bar': 1, 'complete': 'dir'},
+\ 'helptags': {'bar': 1, 'complete': 'dir', 'nargs': '1'},
 \ 'hide': {'bar': 1},
-\ 'highlight': {'bar': 1, 'complete': 'highlight'},
+\ 'highlight': {'bar': 1, 'complete': 'highlight', 'nargs': '*'},
 \ 'history': {'bar': 1, 'complete': 'history'},
 \ 'iabbrev': {'bar': 1},
 \ 'iabclear': {'bar': 1},
 \ 'if': {'bar': 1},
 \ 'ijump': {'bar': 1},
 \ 'ilist': {'bar': 1},
-\ 'imap': {'bar': 1, 'complete': 'mapping'},
+\ 'imap': {'bar': 1, 'complete': 'mapping', 'nargs': '*'},
 \ 'imapclear': {'bar': 1, 'complete': ''},
 \ 'imenu': {'bar': 1},
 \ 'inoreabbrev': {'bar': 1},
-\ 'inoremap': {'bar': 1, 'complete': 'mapping'},
+\ 'inoremap': {'bar': 1, 'complete': 'mapping', 'nargs': '*'},
 \ 'inoremenu': {'bar': 1},
 \ 'insert': {'bar': 1},
 \ 'intro': {'bar': 1, 'complete': ''},
 \ 'isearch': {'bar': 1},
 \ 'isplit': {'bar': 1},
 \ 'iunabbrev': {'bar': 1},
-\ 'iunmap': {'bar': 1, 'complete': 'mapping'},
+\ 'iunmap': {'bar': 1, 'complete': 'mapping', 'nargs': '1'},
 \ 'iunmenu': {'bar': 1},
 \ 'join': {'bar': 1},
 \ 'jumps': {'bar': 1, 'complete': ''},
@@ -499,13 +279,12 @@ let s:default_command = {
 \ 'last': {'bar': 1},
 \ 'later': {'bar': 1},
 \ 'lbuffer': {'bar': 1},
-\ 'lcd': {'bar': 1, 'complete': 'dir'},
-\ 'lchdir': {'bar': 1, 'complete': 'dir'},
+\ 'lcd': {'bang': 1, 'bar': 1, 'complete': 'dir', 'nargs': '?'},
 \ 'lclose': {'bar': 1},
 \ 'lcscope': {'bar': 0},
 \ 'left': {'bar': 1},
 \ 'leftabove': {'bar': 1},
-\ 'let': {'bar': 1},
+\ 'let': {'bar': 1, 'complete': 'var', 'nargs': '*'},
 \ 'lexpr': {'bar': 1},
 \ 'lfile': {'bar': 1},
 \ 'lfirst': {'bar': 1},
@@ -520,12 +299,12 @@ let s:default_command = {
 \ 'llast': {'bar': 1},
 \ 'llist': {'bar': 1},
 \ 'lmake': {'bar': 1, 'complete': 'file'},
-\ 'lmap': {'bar': 1, 'complete': 'mapping'},
+\ 'lmap': {'bar': 1, 'complete': 'mapping', 'nargs': '*'},
 \ 'lmapclear': {'bar': 1, 'complete': ''},
 \ 'lnewer': {'bar': 1},
 \ 'lnext': {'bar': 1},
 \ 'lnfile': {'bar': 1},
-\ 'lnoremap': {'bar': 1, 'complete': 'mapping'},
+\ 'lnoremap': {'bar': 1, 'complete': 'mapping', 'nargs': '*'},
 \ 'loadkeymap': {'bar': 1},
 \ 'loadview': {'bar': 1},
 \ 'lockmarks': {'bar': 1},
@@ -540,12 +319,12 @@ let s:default_command = {
 \ 'lua': {'bar': 1},
 \ 'luado': {'bar': 1},
 \ 'luafile': {'bar': 1},
-\ 'lunmap': {'bar': 1, 'complete': 'mapping'},
+\ 'lunmap': {'bar': 1, 'complete': 'mapping', 'nargs': '1'},
 \ 'lvimgrep': {'bar': 1},
 \ 'lvimgrepadd': {'bar': 1},
 \ 'lwindow': {'bar': 1},
 \ 'make': {'bar': 0},
-\ 'map': {'bar': 1, 'complete': 'mapping'},
+\ 'map': {'bar': 1, 'complete': 'mapping', 'nargs': '*'},
 \ 'mapclear': {'bar': 1, 'complete': ''},
 \ 'mark': {'bar': 1},
 \ 'marks': {'bar': 1},
@@ -567,31 +346,31 @@ let s:default_command = {
 \ 'nbstart': {'bar': 1},
 \ 'new': {'bar': 1, 'complete': 'file'},
 \ 'next': {'bar': 1},
-\ 'nmap': {'bar': 1, 'complete': 'mapping'},
+\ 'nmap': {'bar': 1, 'complete': 'mapping', 'nargs': '*'},
 \ 'nmapclear': {'bar': 1, 'complete': ''},
 \ 'nmenu': {'bar': 1},
-\ 'nnoremap': {'bar': 1, 'complete': 'mapping'},
+\ 'nnoremap': {'bar': 1, 'complete': 'mapping', 'nargs': '*'},
 \ 'nnoremenu': {'bar': 1},
 \ 'noautocmd': {'bar': 1, 'complete': 'command'},
 \ 'nohlsearch': {'bar': 1},
 \ 'noreabbrev': {'bar': 1},
-\ 'noremap': {'bar': 1, 'complete': 'mapping'},
+\ 'noremap': {'bar': 1, 'complete': 'mapping', 'nargs': '*'},
 \ 'noremenu': {'bar': 1},
 \ 'normal': {'bar': 0},
 \ 'noswapfile': {'bar': 1},
 \ 'number': {'bar': 1},
-\ 'nunmap': {'bar': 1, 'complete': 'mapping'},
+\ 'nunmap': {'bar': 1, 'complete': 'mapping', 'nargs': '1'},
 \ 'nunmenu': {'bar': 1},
 \ 'oldfiles': {'bar': 1},
-\ 'omap': {'bar': 1, 'complete': 'mapping'},
+\ 'omap': {'bar': 1, 'complete': 'mapping', 'nargs': '*'},
 \ 'omapclear': {'bar': 1, 'complete': ''},
 \ 'omenu': {'bar': 1},
 \ 'only': {'bar': 1},
-\ 'onoremap': {'bar': 1, 'complete': 'mapping'},
+\ 'onoremap': {'bar': 1, 'complete': 'mapping', 'nargs': '*'},
 \ 'onoremenu': {'bar': 1},
 \ 'open': {'bar': 1},
 \ 'options': {'bar': 1},
-\ 'ounmap': {'bar': 1, 'complete': 'mapping'},
+\ 'ounmap': {'bar': 1, 'complete': 'mapping', 'nargs': '1'},
 \ 'ounmenu': {'bar': 1},
 \ 'ownsyntax': {'bar': 1, 'complete': 'syntax'},
 \ 'pclose': {'bar': 1},
@@ -627,9 +406,8 @@ let s:default_command = {
 \ 'pyfile': {'bar': 0},
 \ 'python': {'bar': 0},
 \ 'python3': {'bar': 1},
-\ 'qall': {'bar': 1},
-\ 'quit': {'bar': 1},
-\ 'quitall': {'bar': 1},
+\ 'qall': {'bang': 1, 'bar': 1},
+\ 'quit': {'bang': 1, 'bar': 1},
 \ 'read': {'bar': 1},
 \ 'recover': {'bar': 1},
 \ 'redir': {'bar': 1},
@@ -653,10 +431,8 @@ let s:default_command = {
 \ 'sall': {'bar': 1},
 \ 'sandbox': {'bar': 1},
 \ 'sargument': {'bar': 1},
-\ 'saveas': {'bar': 1},
-\ 'sbNext': {'bar': 1},
+\ 'saveas': {'bang': 1, 'bar': 1},
 \ 'sball': {'bar': 1},
-\ 'sbfirst': {'bar': 1},
 \ 'sblast': {'bar': 1},
 \ 'sbmodified': {'bar': 1},
 \ 'sbnext': {'bar': 1},
@@ -666,10 +442,10 @@ let s:default_command = {
 \ 'scriptencoding': {'bar': 1},
 \ 'scriptnames': {'bar': 1},
 \ 'scscope': {'bar': 0},
-\ 'set': {'bar': 1, 'complete': 'option'},
-\ 'setfiletype': {'bar': 1, 'complete': 'filetype'},
-\ 'setglobal': {'bar': 1},
-\ 'setlocal': {'bar': 1, 'complete': 'option'},
+\ 'set': {'bar': 1, 'complete': 'option', 'nargs': '*'},
+\ 'setfiletype': {'bar': 1, 'complete': 'filetype', 'nargs': '1'},
+\ 'setglobal': {'bar': 1, 'complete': 'option', 'nargs': '*'},
+\ 'setlocal': {'bar': 1, 'complete': 'option', 'nargs': '*'},
 \ 'sfind': {'bar': 1},
 \ 'sfirst': {'bar': 1},
 \ 'shell': {'bar': 1},
@@ -679,13 +455,13 @@ let s:default_command = {
 \ 'slast': {'bar': 1},
 \ 'sleep': {'bar': 1, 'complete': ''},
 \ 'smagic': {'bar': 1},
-\ 'smap': {'bar': 1, 'complete': 'mapping'},
+\ 'smap': {'bar': 1, 'complete': 'mapping', 'nargs': '*'},
 \ 'smapclear': {'bar': 1, 'complete': ''},
 \ 'smenu': {'bar': 1},
 \ 'snext': {'bar': 1},
 \ 'sniff': {'bar': 1},
 \ 'snomagic': {'bar': 1},
-\ 'snoremap': {'bar': 1, 'complete': 'mapping'},
+\ 'snoremap': {'bar': 1, 'complete': 'mapping', 'nargs': '*'},
 \ 'snoremenu': {'bar': 1},
 \ 'sort': {'bar': 1},
 \ 'source': {'bar': 1},
@@ -706,9 +482,9 @@ let s:default_command = {
 \ 'stop': {'bar': 1},
 \ 'stopinsert': {'bar': 1},
 \ 'stselect': {'bar': 1},
-\ 'substitute': {'bar': 1},
+\ 'substitute': {'bang': 0, 'bar': 1, 'range': '.', 'complete': 'buffer_word'},
 \ 'sunhide': {'bar': 1},
-\ 'sunmap': {'bar': 1, 'complete': 'mapping'},
+\ 'sunmap': {'bar': 1, 'complete': 'mapping', 'nargs': '1'},
 \ 'sunmenu': {'bar': 1},
 \ 'suspend': {'bar': 1},
 \ 'sview': {'bar': 1},
@@ -758,29 +534,28 @@ let s:default_command = {
 \ 'unhide': {'bar': 1},
 \ 'unlet': {'bar': 1},
 \ 'unlockvar': {'bar': 1},
-\ 'unmap': {'bar': 1, 'complete': 'mapping'},
+\ 'unmap': {'bar': 1, 'complete': 'mapping', 'nargs': '1'},
 \ 'unmenu': {'bar': 1},
 \ 'unsilent': {'bar': 1},
-\ 'update': {'bar': 1},
+\ 'update': {'bang': 1, 'bar': 1},
 \ 'verbose': {'bar': 1},
 \ 'version': {'bar': 1},
 \ 'vertical': {'bar': 1},
 \ 'vglobal': {'bar': 0},
-\ 'view': {'bar': 1},
+\ 'view': {'bang': 1, 'bar': 1},
 \ 'vimgrep': {'bar': 1},
 \ 'vimgrepadd': {'bar': 1},
-\ 'visual': {'bar': 1},
+\ 'visual': {'bang': 1, 'bar': 1},
 \ 'viusage': {'bar': 1},
-\ 'vmap': {'bar': 1, 'complete': 'mapping'},
+\ 'vmap': {'bar': 1, 'complete': 'mapping', 'nargs': '*'},
 \ 'vmapclear': {'bar': 1, 'complete': ''},
 \ 'vmenu': {'bar': 1},
 \ 'vnew': {'bar': 1, 'complete': 'file'},
-\ 'vnoremap': {'bar': 1, 'complete': 'mapping'},
+\ 'vnoremap': {'bar': 1, 'complete': 'mapping', 'nargs': '*'},
 \ 'vnoremenu': {'bar': 1},
 \ 'vsplit': {'bar': 1},
-\ 'vunmap': {'bar': 1, 'complete': 'mapping'},
+\ 'vunmap': {'bar': 1, 'complete': 'mapping', 'nargs': '1'},
 \ 'vunmenu': {'bar': 1},
-\ 'wNext': {'bar': 1},
 \ 'wall': {'bar': 1},
 \ 'while': {'bar': 1},
 \ 'wincmd': {'bar': 1},
@@ -788,26 +563,48 @@ let s:default_command = {
 \ 'winpos': {'bar': 1},
 \ 'winsize': {'bar': 1},
 \ 'wnext': {'bar': 1},
-\ 'wprevious': {'bar': 1},
-\ 'wq': {'bar': 1},
-\ 'wqall': {'bar': 1},
-\ 'write': {'bar': 1},
+\ 'wprevious': {'bang': 1, 'bar': 1},
+\ 'wq': {'bang': 1, 'bar': 1},
+\ 'wqall': {'bang': 1, 'bar': 1},
+\ 'write': {'bang': 1, 'bar': 1, 'range': '%', 'nargs': '?'},
 \ 'wsverb': {'bar': 1},
 \ 'wundo': {'bar': 1},
 \ 'wviminfo': {'bar': 1},
-\ 'xall': {'bar': 1},
-\ 'xit': {'bar': 1},
-\ 'xmap': {'bar': 1, 'complete': 'mapping'},
+\ 'xall': {'bang': 1, 'bar': 1},
+\ 'xit': {'bang': 1, 'bar': 1},
+\ 'xmap': {'bar': 1, 'complete': 'mapping', 'nargs': '*'},
 \ 'xmapclear': {'bar': 1, 'complete': ''},
 \ 'xmenu': {'bar': 1},
-\ 'xnoremap': {'bar': 1, 'complete': 'mapping'},
+\ 'xnoremap': {'bar': 1, 'complete': 'mapping', 'nargs': '*'},
 \ 'xnoremenu': {'bar': 1},
-\ 'xunmap': {'bar': 1, 'complete': 'mapping'},
+\ 'xunmap': {'bar': 1, 'complete': 'mapping', 'nargs': '1'},
 \ 'xunmenu': {'bar': 1},
 \ 'yank': {'bar': 1},
 \ 'z': {'bar': 1},
 \ '~': {'bar': 1},
 \ }
+
+function! s:link_alias_command() abort
+  for key in keys(s:alias_commands)
+    let s:default_commands[key] = s:default_commands[s:alias_commands[key]]
+  endfor
+endfunction
+
+let s:alias_commands = {
+\ 'bNext': 'bprevious',
+\ 'bfirst': 'brewind',
+\ 'chdir': 'cd',
+\ 'exit': 'xit',
+\ 'lchdir': 'lcd',
+\ 'quitall': 'qall',
+\ 'sbNext': 'sbprevious',
+\ 'sbfirst': 'sbrewind',
+\ 'wNext': 'wprevious',
+\ }
+
+call s:link_alias_command()
+unlet s:alias_commands
+delfunction s:link_alias_command
 
 function! ccline#command#expand_alias(expr)
   return get(s:alias_dic, a:expr, a:expr)

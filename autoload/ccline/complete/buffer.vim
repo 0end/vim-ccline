@@ -1,7 +1,15 @@
-function! ccline#complete#buffer#complete(A, L, P)
-  if !exists('s:session_id') || ccline#session_id() > s:session_id
-    let s:buffers = map(split(ccline#complete#capture('buffers'), '[\r\n]'), 'strpart(v:val, 10, stridx(v:val, ''"'', 10) - 10)')
-    let s:session_id = ccline#session_id()
-  endif
-  return ccline#complete#forward_matcher(s:buffers, a:A)
+let s:source = {}
+
+function! ccline#complete#buffer#define() abort
+  return deepcopy(s:source)
+endfunction
+
+function! s:source.init() abort
+  let self.candidates = map(
+  \ split(ccline#complete#capture('buffers'), '[\r\n]'),
+  \ 'strpart(v:val, 10, stridx(v:val, ''"'', 10) - 10)')
+endfunction
+
+function! s:source.complete(cmdline, arg, line, pos) abort
+  return ccline#complete#forward_matcher(self.candidates, a:arg)
 endfunction

@@ -3,7 +3,7 @@ let s:save_cpo = &cpo
 set cpo&vim
 
 let s:module = {
-\	"name" : "DrawColorfulCommandline"
+\	"name" : "CCLineDrawCommandline"
 \}
 
 let s:cmdheight = {}

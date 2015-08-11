@@ -1,16 +1,18 @@
-function! ccline#complete#help#parse(line)
-  return ccline#complete#parse_by(a:line, '\S\+')
+let s:source = {}
+
+function! ccline#complete#help#define() abort
+  return deepcopy(s:source)
 endfunction
 
-function! ccline#complete#help#complete(A, L, P)
-  if !exists('s:session_id') || ccline#session_id() > s:session_id
-    let s:tags = s:tags()
-    let s:session_id = ccline#session_id()
-  endif
-  return s:helptag_match(s:tags, a:A)
+function! s:source.init() abort
+  call ccline#dict#help#refresh()
 endfunction
 
-function! s:helptag_match(helptag, string)
+function! s:source.complete(cmdline, arg, line, pos) abort
+  return s:helptag_match(ccline#dict#help#get(), a:arg, '')
+endfunction
+
+function! s:helptag_match(helptag, string, lang)
   let str = empty(a:string) ? 'help' : a:string
   let result = range(7)
   let result[6] = [] " str
@@ -21,9 +23,12 @@ function! s:helptag_match(helptag, string)
   let result[1] = [] " xxx-strxxx, xxxstr-xxx
   let result[0] = [] " xxxstrxxx
   let ignorecase = &ignorecase && !(&smartcase && str =~# '\u')
-  for lang in keys(a:helptag)
-    for line in a:helptag[lang]
-      let part = strpart(line, 0, stridx(line, '	'))
+  for l in keys(a:helptag)
+    if stridx(l, a:lang) != 0
+      continue
+    endif
+    for line in a:helptag[l]
+      let part = strpart(line, 0, stridx(line, "\<Tab>"))
       if part ==# '!_TAG_FILE_ENCODING'
         continue
       endif
@@ -52,17 +57,22 @@ function! s:helptag_match(helptag, string)
       let p += backward_char_is_delimiter * 1
       let p += forward_char_is_delimiter * 1
 
-      let result[p] += [part . '@' . lang]
+      let result[p] += [part . '@' . l]
     endfor
   endfor
+  if empty(ccline#list2str(result))
+    let at = stridx(a:string, '@')
+    if at < 0 || strlen(a:string) - at > 3
+      return []
+    endif
+    return s:helptag_match(a:helptag, strpart(a:string, 0, at), strpart(a:string, at + 1))
+  endif
   let r = []
   for i in range(len(result))
     let r += sort(result[len(result) - i - 1], 's:help_compare')
   endfor
   return r
 endfunction
-
-let s:helplang = split(&helplang, ',')
 
 function! s:help_compare(str1, str2)
   let p1 = strpart(a:str1, 0, strlen(a:str1) - 3)
@@ -83,8 +93,9 @@ function! s:help_compare(str1, str2)
   if l2 ==# 'en'
     return -1
   endif
-  let i1 = index(s:helplang, l1)
-  let i2 = index(s:helplang, l2)
+  let helplangs = split(&helplang, ',')
+  let i1 = index(helplangs, l1)
+  let i2 = index(helplangs, l2)
   if i1 == -1 && i2 == -1
     return 0
   endif
@@ -101,26 +112,4 @@ function! s:help_compare(str1, str2)
     return 1
   endif
   return 0
-endfunction
-
-function! s:tags()
-  let paths = globpath(&runtimepath, 'doc/{tags,tags-??}', 0, 1)
-  let tags = {}
-  for path in paths
-    if !filereadable(path)
-      continue
-    endif
-    let fname = fnamemodify(path, ':t')
-    if strlen(fname) == 4
-      let lang = 'en'
-    else
-      let lang = strpart(fname, 5)
-    endif
-    if has_key(tags, lang)
-      let tags[lang] += readfile(path)
-    else
-      let tags[lang] = readfile(path)
-    endif
-  endfor
-  return tags
 endfunction

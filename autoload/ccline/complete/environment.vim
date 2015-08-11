@@ -1,9 +1,19 @@
-function! ccline#complete#environment#complete(A, L, P)
-  if !exists('s:session_id') || ccline#session_id() > s:session_id
-    let s:environment = map(split(system(s:environment_command), '\n'), 'strpart(v:val, 0, stridx(v:val, "="))')
-    let s:session_id = ccline#session_id()
-  endif
-  return ccline#complete#forward_matcher(s:environment, a:A)
+let s:source = {}
+
+function! ccline#complete#environment#define() abort
+  return deepcopy(s:source)
+endfunction
+
+let s:P = ccline#vital().import('Process')
+
+function! s:source.init() abort
+  let self.candidates = map(
+  \ split(s:P.system(s:environment_command), '[\r\n]'),
+  \ 'strpart(v:val, 0, stridx(v:val, "="))')
+endfunction
+
+function! s:source.complete(cmdline, arg, line, pos) abort
+  return ccline#complete#forward_matcher(self.candidates, a:arg)
 endfunction
 
 let s:environment_command = has('win32') ? 'set' : 'env'

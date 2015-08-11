@@ -9,9 +9,9 @@ let s:save_cpo = &cpo
 set cpo&vim
 
 command! -count CCLineNormal call ccline#start(
-\        ":", <count> != 0 ? ".,.+" . (<count> - <line1>) : '')
+\        <count> != 0 ? ".,.+" . (<count> - <line1>) : '')
 
-command! -range CCLineVisual call ccline#start(":", "'<,'>")
+command! -range CCLineVisual call ccline#start("'<,'>")
 
 nnoremap <silent> <Plug>(ccline) :CCLineNormal<CR>
 vnoremap <silent> <Plug>(ccline) :CCLineVisual<CR>

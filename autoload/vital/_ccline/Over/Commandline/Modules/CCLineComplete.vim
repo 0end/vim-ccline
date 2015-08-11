@@ -3,7 +3,7 @@ let s:save_cpo = &cpo
 set cpo&vim
 
 let s:module = {
-\	"name" : "Complete",
+\	"name" : "CCLineComplete",
 \}
 
 function! s:module.priority(event)

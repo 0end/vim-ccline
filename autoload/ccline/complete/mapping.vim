@@ -1,13 +1,15 @@
-function! ccline#complete#mapping#parse(line)
-  return ccline#complete#parse_by(a:line, '\S\+')
+let s:source = {}
+
+function! ccline#complete#mapping#define() abort
+  return deepcopy(s:source)
 endfunction
 
-function! ccline#complete#mapping#complete(A, L, P)
-  if !exists('s:session_id') || ccline#session_id() > s:session_id
-    let s:keys = ccline#complete#uniq(s:prefixs + s:default_keys + s:get_user_key())
-    let s:session_id = ccline#session_id()
-  endif
-  return sort(ccline#complete#forward_matcher(s:keys, a:A))
+function! s:source.init() abort
+  let self.candidates = ccline#complete#uniq(s:prefixs + s:default_keys + s:get_user_key())
+endfunction
+
+function! s:source.complete(cmdline, arg, line, pos) abort
+  return sort(ccline#complete#forward_matcher(self.candidates, a:arg))
 endfunction
 
 function! s:get_user_key()
