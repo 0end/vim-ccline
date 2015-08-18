@@ -1,6 +1,6 @@
 let s:source = {}
 
-function! ccline#complete#user#define() abort
+function! ccline#complete#source#user#define() abort
   return deepcopy(s:source)
 endfunction
 

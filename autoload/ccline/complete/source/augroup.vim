@@ -1,13 +1,11 @@
 let s:source = {}
 
-function! ccline#complete#color#define() abort
+function! ccline#complete#source#augroup#define() abort
   return deepcopy(s:source)
 endfunction
 
 function! s:source.init() abort
-  let self.candidates = map(
-  \ globpath(&runtimepath, 'colors/*.vim', 0, 1),
-  \ 'fnamemodify(v:val, ":t:r")')
+  let self.candidates = split(ccline#complete#capture('augroup'))
 endfunction
 
 function! s:source.complete(cmdline, arg, line, pos) abort

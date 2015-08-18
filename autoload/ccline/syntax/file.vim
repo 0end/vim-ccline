@@ -22,7 +22,7 @@ endfunction
 
 function! s:head(path) abort
   let result = fnamemodify(a:path, ':h')
-  if result ==# '.' && stridx(a:path, '.') != 0
+  if result ==# a:path || result ==# '.' && stridx(a:path, '.') != 0
     return ''
   endif
   return result
@@ -47,5 +47,3 @@ endfunction
 function! s:remove_escape(expr)
   return substitute(a:expr, '\\\ze' . s:escape_char, '', 'g')
 endfunction
-
-echo s:isdirectory('alice/b\%b/')

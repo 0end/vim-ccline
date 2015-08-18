@@ -1,11 +1,13 @@
 let s:source = {}
 
-function! ccline#complete#augroup#define() abort
+function! ccline#complete#source#compiler#define() abort
   return deepcopy(s:source)
 endfunction
 
 function! s:source.init() abort
-  let self.candidates = split(ccline#complete#capture('augroup'))
+  let self.candidates = map(
+  \ split(ccline#complete#capture('compiler'), '\n'),
+  \ 'fnamemodify(v:val, ":t:r")')
 endfunction
 
 function! s:source.complete(cmdline, arg, line, pos) abort

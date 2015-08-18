@@ -13,192 +13,12 @@ function! s:module.priority(event)
   return 0
 endfunction
 
-function! s:_strpart_display(src, start, ...)
-  let default_len = strdisplaywidth(a:src) - a:start
-  let len = get(a:000, 0, default_len)
-  if len <= 0 || default_len <= 0
-    return ''
-  endif
-  let chars = split(a:src, '\zs')
-  let loss = 0
-  if a:start > 0
-    let temp_len = 0
-    let start_char_index = len(chars) - 1
-    for i in range(len(chars))
-      let temp_len += strdisplaywidth(chars[i])
-      if temp_len >= a:start
-        let loss = temp_len - a:start
-        let start_char_index = i
-        break
-      endif
-    endfor
-    call remove(chars, 0, start_char_index)
-  endif
-  let temp_len = loss
-  let end_char_index = -1
-  let over = -1
-  for i in range(len(chars))
-    let temp_len += strdisplaywidth(chars[i])
-    if temp_len >= len
-      let over = temp_len - len
-      let end_char_index = i
-      break
-    endif
-  endfor
-  if end_char_index >= 0
-    if over > 0
-      let end_char_index -= 1
-    endif
-    if end_char_index < len(chars) - 1
-      call remove(chars, end_char_index + 1, len(chars) - 1)
-    endif
-  endif
-  return join(chars, '')
-endfunction
-
-
-function! s:_statusline_parts(list, count, columns)
-  if empty(a:list)
-    return
-  endif
-  let l:count = (a:count >= 0) ? a:count : 0
-  let head = "< "
-  let tail = " >"
-  let sep = "  "
-  let head_width = strdisplaywidth(head)
-  let tail_width = strdisplaywidth(tail)
-  let sep_width = strdisplaywidth(sep)
-  let first = 0
-  let last = 0
-  let len = len(a:list)
-  let width = strdisplaywidth(s:complete.display(a:list[0]))
-  for i in range(1, len - 1)
-    let last = i
-    let dw = strdisplaywidth(s:complete.display(a:list[i]))
-    let width += sep_width + dw
-    let temp_width = width
-    if i < len - 1
-      let temp_width += tail_width
-    endif
-    if temp_width > a:columns
-      if l:count < i
-        let last = i - 1
-        break
-      endif
-      let first = i
-      let width = head_width + dw
-    endif
-  endfor
-  let with_head = (first > 0)
-  let with_tail = (last < len - 1)
-  let view = map(copy(a:list[first : last]), 's:complete.display(v:val)')
-  let select_index = l:count - first
-  let select = view[select_index]
-  if strdisplaywidth(select) >= a:columns
-    let max_len = a:columns - with_head*head_width - with_tail*tail_width
-    let select = s:_strpart_display(select, 0, max_len)
-  endif
-  let result = ['', select, '']
-  if select_index > 0
-    let result[0] = join(view[: select_index - 1], sep) . sep
-  endif
-  if select_index < len(view) - 1
-    let result[2] = sep . join(view[select_index + 1 :], sep)
-  endif
-  if with_head
-    let result[0] = head . result[0]
-  endif
-  if with_tail
-    let result[2] .= tail
-  endif
-  return result
-endfunction
-
-function! s:_statuslines(list, count, widths)
-  let parts = s:_statusline_parts(a:list, a:count, &columns - (len(a:widths) - 1))
-  call map(parts, 's:_escape_percent(v:val)')
-  let hl_select = "%#WildMenu#"
-  let hl_none = "%#StatusLine#"
-  if len(a:widths) == 1
-    if a:count >= 0
-      let parts[1] = hl_select . parts[1] . hl_none
-    endif
-    return [hl_none . join(parts, '')]
-  endif
-  let len = len(a:widths)
-  let result = map(range(len), "hl_none")
-  let p = 0
-  let px = 0
-  let w = 0
-  let wx = 0
-  while w < len && p < len(parts)
-    let width = a:widths[w] - wx
-    let d = s:_strpart_display(parts[p], px)
-    let dl = strdisplaywidth(d)
-    if width >= dl
-      if p == 1 && a:count >= 0
-        let result[w] .= hl_select . d . hl_none
-      else
-        let result[w] .= hl_none . d
-      endif
-      let wx += dl
-      let p += 1
-      let px = 0
-      continue
-    endif
-    if p == 1 && a:count >= 0
-      let result[w] .= hl_select . s:_strpart_display(d, 0, width) . hl_none
-    else
-      let result[w] .= hl_none . s:_strpart_display(d, 0, width)
-    endif
-    let px += width
-    let w += 1
-    let wx = 0
-  endwhile
-  return result
-endfunction
-
-function! s:_bottom_windows()
-  let save_winnr = winnr()
-  let result = []
-  for i in range(1, winnr("$"))
-    execute i . "wincmd w"
-    wincmd j
-    if i == winnr()
-      call add(result, i)
-    endif
-  endfor
-  if save_winnr != winnr()
-    execute save_winnr . "wincmd w"
-  endif
-  return result
-endfunction
-
-function! s:_escape_percent(expr)
-  return substitute(a:expr, '%', '%%', 'g')
-endfunction
-
-function! s:_set_statuslines(winnrs, statuslines)
-  for i in range(len(a:winnrs))
-    call setwinvar(a:winnrs[i], '&statusline', a:statuslines[i])
-  endfor
-endfunction
-
-function! s:_get_statuslines(winnrs)
-  let result = range(len(a:winnrs))
-  for i in range(len(a:winnrs))
-    let result[i] = getwinvar(a:winnrs[i], '&statusline')
-  endfor
-  return result
-endfunction
-
 
 function! s:module.complete(cmdline)
-  call s:_finish()
-  let s:bottom_windows = s:_bottom_windows()
-  let s:old_statuslines = s:_get_statuslines(s:bottom_windows)
-
-  let s:complete = a:cmdline.complete()
+  let self.on_complete = 1
+  let self.drawer = a:cmdline.complete_drawer()
+  call self.drawer.init()
+  let s:complete = a:cmdline.complete_source()
   if s:complete.session_id < a:cmdline.session_id
     call s:complete.init()
     let s:complete.session_id = a:cmdline.session_id
@@ -228,21 +48,18 @@ function! s:module.complete(cmdline)
 endfunction
 
 
-function! s:_finish()
-  if !exists("s:old_statuslines")
-    return
+function! s:module._finish()
+  if self.on_complete
+    call self.drawer.finish()
+    let self.on_complete = 0
   endif
-  call s:_set_statuslines(s:bottom_windows, s:old_statuslines)
-  unlet s:old_statuslines
-  unlet s:bottom_windows
-  redrawstatus
 endfunction
 
 
 function! s:module.on_char_pre(cmdline)
   if a:cmdline.is_input("<Over>(complete)")
     if self.complete(a:cmdline) == -1
-      call s:_finish()
+      call self._finish()
       call a:cmdline.setchar('')
       return
     endif
@@ -263,36 +80,74 @@ function! s:module.on_char_pre(cmdline)
       let s:count = len(s:complete_list) - 1
     endif
   else
+    let self.a = 1
     if a:cmdline.untap_keyinput("Completion")
       call a:cmdline.callevent("on_char_pre")
     endif
-    call s:_finish()
+    call self._finish()
     return
   endif
   let keyword = (s:count >= 0) ? s:complete.insert(s:complete_list[s:count]) : s:keyword
   call a:cmdline.setline(s:head . keyword . s:tail)
   call a:cmdline.setpos(s:pos + strchars(keyword))
   if len(s:complete_list) > 1
-    let statuslines = s:_statuslines(s:complete_list, s:count, map(copy(s:bottom_windows), 'winwidth(v:val)'))
-    call s:_set_statuslines(s:bottom_windows, statuslines)
-    redrawstatus
+    call self.drawer.draw(s:complete_list, s:count, s:complete)
   elseif len(s:complete_list) == 1
+    call a:cmdline.untap_keyinput("Completion")
+  endif
+endfunction
+
+function! s:module.on_char(cmdline) abort
+  if !exists('g:ccline#autocomplete')
+    return
+  endif
+  if !self.a
+    return
+  endif
+  if strlen(a:cmdline.char()) > 1 || a:cmdline.char() !~# '[[:print:]]'
+    return
+  endif
+  let self.a = 0
+  call self._finish()
+  if self.complete(a:cmdline) == -1
+    call a:cmdline.untap_keyinput("Completion")
+    return
+  endif
+  call a:cmdline.tap_keyinput("Completion")
+  let keyword = (s:count >= 0) ? s:complete.insert(s:complete_list[s:count]) : s:keyword
+  call a:cmdline.setline(s:head . s:keyword . s:tail)
+  call a:cmdline.setpos(s:pos + strchars(s:keyword))
+  if len(s:complete_list) >= 1
+    call self.drawer.draw(s:complete_list, s:count, s:complete)
+  else
     call a:cmdline.untap_keyinput("Completion")
   endif
 endfunction
 
 
 function! s:module.on_draw_pre(...)
-  " 	redrawstatus
 endfunction
 
 
 function! s:module.on_leave(cmdline)
-  call s:_finish()
+  call self._finish()
+endfunction
+
+function! s:module.on_execute_pre(cmdline) abort
+  call self._finish()
+endfunction
+
+function! s:module.on_draw(cmdline) abort
+  if self.on_complete
+    call self.drawer.on_draw(a:cmdline)
+  endif
 endfunction
 
 function! s:make()
-  return deepcopy(s:module)
+  let module = deepcopy(s:module)
+  let module.on_complete = 0
+  let module.a = 0
+  return module
 endfunction
 
 let &cpo = s:save_cpo

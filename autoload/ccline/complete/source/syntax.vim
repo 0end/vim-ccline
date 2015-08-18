@@ -1,12 +1,12 @@
 let s:source = {}
 
-function! ccline#complete#compiler#define() abort
+function! ccline#complete#source#syntax#define() abort
   return deepcopy(s:source)
 endfunction
 
 function! s:source.init() abort
   let self.candidates = map(
-  \ split(ccline#complete#capture('compiler'), '\n'),
+  \ globpath(&runtimepath, 'syntax/*.vim', 0, 1),
   \ 'fnamemodify(v:val, ":t:r")')
 endfunction
 

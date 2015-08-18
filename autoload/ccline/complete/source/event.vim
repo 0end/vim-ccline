@@ -1,6 +1,6 @@
 let s:source = {}
 
-function! ccline#complete#behave#define() abort
+function! ccline#complete#source#event#define() abort
   return deepcopy(s:source)
 endfunction
 
@@ -8,7 +8,5 @@ function! s:source.init() abort
 endfunction
 
 function! s:source.complete(cmdline, arg, line, pos) abort
-  return sort(ccline#complete#forward_matcher(s:behave_suboptions, a:arg))
+  return ccline#complete#forward_matcher(ccline#dict#event#get(), a:arg)
 endfunction
-
-let s:behave_suboptions = ['mswin', 'xterm']

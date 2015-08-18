@@ -4,8 +4,20 @@ let s:save_cpo = &cpo
 set cpo&vim
 
 function! ccline#command#refresh() abort
+  let g:ccline#command#override_commands = get(g:, 'ccline#command#override_commands', {})
   let s:user_commands = s:get_user_commands()
-  let s:commands = extend(copy(s:default_commands), s:user_commands)
+  let s:commands = s:each_extend(extend(copy(s:default_commands), s:user_commands), g:ccline#command#override_commands)
+endfunction
+
+function! s:each_extend(expr1, expr2) abort
+  for k in keys(a:expr2)
+    if has_key(a:expr1, k)
+      call extend(a:expr1[k], a:expr2[k])
+      continue
+    endif
+    let a:expr1[k] = a:expr2[k]
+  endfor
+  return a:expr1
 endfunction
 
 function! s:commands()
@@ -20,9 +32,9 @@ function! ccline#command#iscommand(expr)
 endfunction
 
 function! ccline#command#get(expr) abort
-  let expr = ccline#command#expand_alias(a:expr)
-  let command = get(s:commands(), expr, {})
-  return extend(deepcopy(s:default_command), command)
+  let command = get(s:commands(), ccline#command#expand_alias(a:expr), {})
+  let command = extend(copy(s:default_command), command)
+  return command
 endfunction
 
 function! ccline#command#commands() abort
@@ -498,7 +510,7 @@ let s:default_commands = {
 \ 'tabNext': {'bar': 1},
 \ 'tabclose': {'bar': 1},
 \ 'tabdo': {'bar': 1},
-\ 'tabedit': {'bar': 1, 'complete': 'file'},
+\ 'tabedit': {'bar': 1, 'complete': 'file', 'syntax': 'file', 'nargs': '*'},
 \ 'tabfind': {'bar': 1},
 \ 'tabfirst': {'bar': 1},
 \ 'tablast': {'bar': 1},
@@ -589,7 +601,6 @@ function! s:link_alias_command() abort
     let s:default_commands[key] = s:default_commands[s:alias_commands[key]]
   endfor
 endfunction
-
 let s:alias_commands = {
 \ 'bNext': 'bprevious',
 \ 'bfirst': 'brewind',
@@ -601,7 +612,6 @@ let s:alias_commands = {
 \ 'sbfirst': 'sbrewind',
 \ 'wNext': 'wprevious',
 \ }
-
 call s:link_alias_command()
 unlet s:alias_commands
 delfunction s:link_alias_command

@@ -2,7 +2,7 @@
 
 let s:source = {}
 
-function! ccline#complete#buffer_word#define() abort
+function! ccline#complete#source#buffer_word#define() abort
   return deepcopy(s:source)
 endfunction
 

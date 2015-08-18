@@ -29,6 +29,9 @@ endfunction
 
 
 function! s:suffix(left, suffix)
+  if empty(a:suffix)
+    return ''
+  endif
 	let left_len = strdisplaywidth(a:left)
 	let len = &columns - left_len % &columns
 	let len = len + (&columns * (strdisplaywidth(a:suffix) > (len - 1))) - 1
@@ -37,31 +40,41 @@ function! s:suffix(left, suffix)
 endfunction
 
 
-let s:old_width = 0
+let s:old_height = 0
 function! s:_redraw(cmdline)
-	let left = a:cmdline.get_prompt() . a:cmdline.getline() . (empty(a:cmdline.line.pos_char()) ? " " : "")
-	let width = strdisplaywidth(left) + 1
+  let width = 0
+  let height = 0
+  for l in a:cmdline._lines
+    let width = strdisplaywidth(l)
+    let height += (width - 1)/(&columns) + 1
+  endfor
+  if !(height == 1 && s:old_height == 1)
+    normal! :
+  endif
+  let s:old_height = height
+  call s:cmdheight.save()
+  let height = max([height, s:cmdheight.get()])
+  if height > &cmdheight || &cmdheight > height
+    let &cmdheight = height
+    redraw
+  endif
 
-	if	a:cmdline.get_suffix() != ""
-		let width += strdisplaywidth(s:suffix(left, a:cmdline.get_suffix())) - 1
-	endif
+	" if &columns >= width && &columns <= s:old_width && s:old_width >= width
+	" 	redraw
+	" 	normal! :
+	" elseif &columns <= width
+	" 	normal! :
+	" else
+	" 	redraw
+	" endif
+	" let s:old_width = width
 
-	if &columns >= width && &columns <= s:old_width && s:old_width >= width
-		redraw
-		normal! :
-	elseif &columns <= width
-		normal! :
-	else
-		redraw
-	endif
-	let s:old_width = width
-
-	call s:cmdheight.save()
-	let height = max([(width - 1) / (&columns) + 1, s:cmdheight.get()])
-	if height > &cmdheight || &cmdheight > height
-		let &cmdheight = height
-		redraw
-	endif
+	" call s:cmdheight.save()
+	" let height = max([(width - 1) / (&columns) + 1, s:cmdheight.get()])
+	" if height > &cmdheight || &cmdheight > height
+	" 	let &cmdheight = height
+	" 	redraw
+	" endif
 endfunction
 
 
@@ -69,25 +82,32 @@ function! s:_as_echon(str)
 	return "echon " . strtrans(string(a:str))
 endfunction
 
+function! s:module.priority(event)
+  if a:event == "on_draw_pre" || a:event == "on_draw"
+    return 1
+  endif
+  return 0
+endfunction
+
 
 function! s:module.on_draw_pre(cmdline)
-  if !empty(a:cmdline.get_suffix())
-    let left = a:cmdline.get_prompt() . a:cmdline.getline() . repeat(" ", empty(a:cmdline.line.pos_char()))
-    let suffix =  s:_as_echon(s:suffix(left, a:cmdline.get_suffix()))
-  else
+  let left = a:cmdline.get_prompt() . a:cmdline.getline() . repeat(" ", empty(a:cmdline.line.pos_char()))
+  let suffix = s:suffix(left, a:cmdline.get_suffix())
+  let line = left
+  if empty(suffix)
     let suffix = 'echon'
+  else
+    let line .= suffix
   endif
   let prompt = s:as_echohl(a:cmdline._get_prompt_syntax())
-
-  let self.draw_command = join([
+  let a:cmdline._draw_command = join([
   \  prompt,
   \  self.syntax_highlight(a:cmdline),
   \  'echohl ' . a:cmdline._suffix_highlight,
   \  suffix,
   \  'echohl NONE',
   \ ], ' | ')
-
-  call s:_redraw(a:cmdline)
+  let a:cmdline._lines = [line]
 endfunction
 
 function! s:module.syntax_highlight(cmdline)
@@ -157,7 +177,9 @@ endfunction
 
 
 function! s:module.on_draw(cmdline)
-	execute self.draw_command
+  call s:_redraw(a:cmdline)
+  execute a:cmdline._draw_command
+  redraw
 " 	execute "echohl" a:cmdline.highlights.prompt
 " 	call s:echon(a:cmdline.get_prompt())
 " 	echohl NONE

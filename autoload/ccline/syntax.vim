@@ -218,21 +218,12 @@ function! ccline#syntax#syntax(cmdline) abort
     if empty(syntax)
       let hl += ccline#syntax#expr(expr[1][0], expr[1][1 :] + expr[2])
     else
-      let hl += ccline#syntax#{syntax}#syntax(expr[1][0], expr[1][1 :] + expr[2])
+      try
+        let hl += ccline#syntax#{syntax}#syntax(expr[1][0], expr[1][1 :] + expr[2])
+      catch /^Vim\%((\a\+)\)\?:E117/
+        let hl += ccline#syntax#expr(expr[1][0], expr[1][1 :] + expr[2])
+      endtry
     endif
-
-
-    " unlet! Syntax
-    " let Syntax = get(cmd, 'syntax', function('ccline#syntax#expr'))
-    " if type(Syntax) == type('')
-    "   let s = Syntax
-    "   unlet Syntax
-    "   let Syntax = get(s:syntax, s, function('ccline#syntax#expr'))
-    " endif
-    " let hl += call(
-    " \ Syntax,
-    " \ [expr[1][0], expr[1][1 :] + expr[2]]
-    " \ )
     let result += hl
     let s:cache += [hl]
   endfor
@@ -246,11 +237,6 @@ function! s:flatten(list) abort
   endfor
   return result
 endfunction
-
-let s:syntax = {
-\ 'help': function('ccline#syntax#help#syntax'),
-\ 'file': function('ccline#syntax#file#syntax'),
-\ }
 
 let &cpo = s:save_cpo
 unlet s:save_cpo

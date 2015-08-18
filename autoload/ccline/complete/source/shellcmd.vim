@@ -1,6 +1,6 @@
 let s:source = {}
 
-function! ccline#complete#shellcmd#define() abort
+function! ccline#complete#source#shellcmd#define() abort
   return deepcopy(s:source)
 endfunction
 

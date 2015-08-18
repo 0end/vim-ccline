@@ -1,7 +1,11 @@
 let s:source = {}
 
-function! ccline#complete#function#define() abort
+function! ccline#complete#source#function#define() abort
   return deepcopy(s:source)
+endfunction
+
+function! s:source.parse(cmdline) abort
+  return ccline#complete#parse_by(a:cmdline.backward(), '\w\+')
 endfunction
 
 function! s:source.init() abort
@@ -9,6 +13,9 @@ function! s:source.init() abort
 endfunction
 
 function! s:source.complete(cmdline, arg, line, pos) abort
+  if match(strpart(a:cmdline.backward(), 0, strlen(a:cmdline.backward()) - strlen(a:arg)), '[([:blank:]]$') < 0
+    return []
+  endif
   if stridx(a:arg, '<SNR>') == 0
     return sort(ccline#complete#forward_matcher(keys(self.functions), a:arg), 's:function_compare')
   endif

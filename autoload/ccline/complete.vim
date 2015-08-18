@@ -38,48 +38,65 @@ function! ccline#complete#parse_by(line, pattern)
   return [pos, keyword]
 endfunction
 
-function! ccline#complete#complete(cmdline)
+function! ccline#complete#source(cmdline)
   let current_command = a:cmdline.commandline.current_command(a:cmdline.getpos())
   if empty(current_command)
-    return deepcopy(s:default_dict)
+    return deepcopy(s:default_source)
   endif
   if current_command == ':'
-    return extend(deepcopy(s:default_dict), ccline#complete#command#define())
+    return extend(deepcopy(s:default_source), ccline#complete#source#command#define())
   endif
   let cmd = ccline#command#get(current_command)
   let complete =  cmd.complete
   if empty(complete)
-    return deepcopy(s:default_dict)
+    return deepcopy(s:default_source)
   endif
   let nargs = cmd.nargs
   if nargs ==# '0'
-    return deepcopy(s:default_dict)
+    return deepcopy(s:default_source)
   elseif nargs ==# '1' || nargs ==# '?'
     let args = a:cmdline.commandline.current_expr(a:cmdline.getpos())[2]
     if len(args) - empty(s:last(args, ['', ''])[1]) > 0
-      return deepcopy(s:default_dict)
+      return deepcopy(s:default_source)
     endif
   endif
-  return extend(deepcopy(s:default_dict), ccline#complete#{complete}#define())
+  return extend(deepcopy(s:default_source), ccline#complete#source#{complete}#define())
 endfunction
 
-let s:default_dict = {
+let s:default_source = {
 \ 'session_id': 0
 \ }
-function! s:default_dict.init() abort
+function! s:default_source.init() abort
 endfunction
-function! s:default_dict.parse(cmdline) abort
+function! s:default_source.parse(cmdline) abort
   return s:parse(a:cmdline)
 endfunction
-function! s:default_dict.complete(arg, line, pos, args) abort
+function! s:default_source.complete(arg, line, pos, args) abort
   return []
 endfunction
-function! s:default_dict.display(candidate) abort
+function! s:default_source.display(candidate) abort
   return a:candidate
 endfunction
-function! s:default_dict.insert(candidate) abort
+function! s:default_source.insert(candidate) abort
   return a:candidate
 endfunction
+
+
+function! ccline#complete#drawer(cmdline) abort
+  let g:ccline#complete#drawer = get(g:, 'ccline#complete#drawer', 'statusline')
+  return extend(deepcopy(s:default_drawer), ccline#complete#drawer#{g:ccline#complete#drawer}#make())
+endfunction
+
+let s:default_drawer = {}
+function! s:default_drawer.init() abort
+endfunction
+function! s:default_drawer.finish() abort
+endfunction
+function! s:default_drawer.draw() abort
+endfunction
+function! s:default_drawer.on_draw(cmdline) abort
+endfunction
+
 
 
 function! ccline#complete#capture(cmd)

@@ -1,6 +1,6 @@
 let s:source = {}
 
-function! ccline#complete#file#define() abort
+function! ccline#complete#source#file#define() abort
   return deepcopy(s:source)
 endfunction
 
@@ -30,7 +30,7 @@ function! s:source.parse(cmdline) abort
   let parts = split(self.path, slash)
   let keyword = parts[len(parts) - 1]
   let pos = strchars(backward) - strchars(keyword)
-  if !s:is_exists(strpart(backward, 0, strlen(backward) - strlen(keyword)))
+  if !s:is_exists(strpart(self.path, 0, strlen(self.path) - strlen(keyword)))
     return [strchars(backward) - strchars(self.path), self.path]
   endif
   return [pos, keyword]

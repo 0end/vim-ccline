@@ -101,6 +101,8 @@ execute 'highlight link' s:ccline._suffix_highlight 'Comment'
 
 call s:ccline.cnoremap("\<Tab>", "<Over>(complete)")
 
+let s:ccline._draw_command = ''
+
 function! s:ccline.on_draw_pre(cmdline)
   " call self.set_suffix(string(self.commandline.core))
   call self._set_syntax(ccline#syntax#syntax(self))
@@ -176,8 +178,12 @@ function! s:ccline._get_prompt_syntax() abort
   return self._prompt_syntax
 endfunction
 
-function! s:ccline.complete()
-  return ccline#complete#complete(self)
+function! s:ccline.complete_source()
+  return ccline#complete#source(self)
+endfunction
+
+function! s:ccline.complete_drawer() abort
+  return ccline#complete#drawer(self)
 endfunction
 
 function! s:ccline.default_command()
