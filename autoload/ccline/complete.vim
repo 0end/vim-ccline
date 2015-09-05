@@ -33,7 +33,7 @@ function! s:parse(cmdline)
 endfunction
 
 function! ccline#complete#parse_by(line, pattern)
-  let keyword = matchstr(a:line, '\zs' . a:pattern . '\ze$')
+  let keyword = matchstr(a:line, a:pattern . '$')
   let pos = strchars(a:line) - strchars(keyword)
   return [pos, keyword]
 endfunction
@@ -71,7 +71,7 @@ endfunction
 function! s:default_source.parse(cmdline) abort
   return s:parse(a:cmdline)
 endfunction
-function! s:default_source.complete(arg, line, pos, args) abort
+function! s:default_source.complete(cmdline, arg, line, pos) abort
   return []
 endfunction
 function! s:default_source.display(candidate) abort
@@ -125,26 +125,31 @@ function! ccline#complete#last_option_pair(expr, key_pattern, delimiter_pattern,
 endfunction
 
 function! ccline#complete#forward_matcher(list, string)
+  let c = &smartcase ? 'smartcase' : &ignorecase ? 'ignorecase' : 'casesensitive'
   if empty(a:string)
     return a:list
   endif
-  if &ignorecase
-    let result = []
-    for e in a:list
-      if stridx(tolower(e), tolower(a:string)) == 0
-        call add(result, e)
-      endif
-    endfor
-    return result
+  let result = []
+  for e in a:list
+    if s:startswith_{c}(e, a:string)
+      call add(result, e)
+    endif
+  endfor
+  return result
+endfunction
+
+function! s:startswith_smartcase(str1, str2) abort
+  if match(a:str2, '\u') >= 0
+    return stridx(a:str1, a:str2) == 0
   else
-    let result = []
-    for e in a:list
-      if stridx(e, a:string) == 0
-        call add(result, e)
-      endif
-    endfor
-    return result
+    return stridx(tolower(a:str1), tolower(a:str2)) == 0
   endif
+endfunction
+function! s:startswith_ignorecase(str1, str2) abort
+  return stridx(tolower(a:str1), tolower(a:str2)) == 0
+endfunction
+function! s:startswith_casesensitive(str1, str2) abort
+  return stridx(a:str1, a:str2) == 0
 endfunction
 
 let &cpo = s:save_cpo

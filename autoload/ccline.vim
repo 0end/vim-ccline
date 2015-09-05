@@ -16,6 +16,7 @@ let s:C = ccline#vital().import('Over.Commandline')
 let s:ccline = s:C.make_default()
 
 call s:ccline.connect('Paste')
+call s:ccline.connect(s:C.make_module('CCLineAutoSuggest', ':'))
 call s:ccline.connect('CursorMove')
 call s:ccline.connect('InsertRegister')
 call s:ccline.connect(s:C.make_module('NoInsert', ''))
@@ -96,10 +97,20 @@ function! s:cancel.on_char_pre(cmdline) abort
 endfunction
 call s:ccline.connect(s:cancel)
 
+let s:H = ccline#vital().import('Highlight')
 let s:ccline._suffix_highlight = 'CCLineCommandLineSuffix'
-execute 'highlight link' s:ccline._suffix_highlight 'Comment'
+call s:H.link(s:ccline._suffix_highlight, 'Comment')
+let s:ccline._cursor_insert_highlight = 'CCLineCommandLineOnCursor'
 
-call s:ccline.cnoremap("\<Tab>", "<Over>(complete)")
+" TODO
+augroup ccline-colorscheme
+  autocmd!
+  autocmd ColorScheme * execute "highlight " . s:ccline.highlights.cursor_insert . " cterm=underline term=underline gui=underline"
+augroup END
+
+function! s:ccline.__keymapping__() abort
+  return g:ccline#keymapping
+endfunction
 
 let s:ccline._draw_command = ''
 
@@ -253,8 +264,44 @@ function! ccline#backward()
   return s:ccline.backward()
 endfunction
 
+function! ccline#connect(...) abort
+  return call(s:ccline.connect, a:000, s:ccline)
+endfunction
+
 let g:ccline#prompt = get(g:, 'ccline#prompt',
 \ [{'value': ':', 'group': 'CursorLine'}, {'value': '>', 'group': 'Comment'}, {'value': ' ', 'group': 'None'}])
+
+
+
+function! ccline#complete_func()
+  let cmdline = s:simple_ccline()
+  let source = ccline#complete#source(cmdline)
+  call source.init()
+  let [pos, keyword] = source.parse(cmdline)
+  let list = source.complete(cmdline, keyword, getline('.'), col('.') - 1)
+  call map(list, '{"word": source.insert(v:val), "abbr": source.display(v:val)}')
+  call complete(pos + 1, list)
+  return ''
+endfunction
+
+function! s:simple_ccline() abort
+  let c = ccline#commandline#make()
+  call c.add(strpart(getline('.'), 0, col('.') - 1))
+  return {
+  \ 'commandline': c,
+  \ 'backward': function('s:backward'),
+  \ 'getpos': function('s:getpos'),
+  \ }
+endfunction
+
+function! s:backward() abort dict
+  return strpart(getline('.'), 0, col('.') - 1)
+endfunction
+function! s:getpos() abort dict
+  return col('.') - 1
+endfunction
+
+
 
 function! ccline#start(input) abort
   if a:input ==# "'<,'>"
@@ -264,7 +311,6 @@ function! ccline#start(input) abort
   call s:ccline.set_prompt(join(map(deepcopy(g:ccline#prompt), 'v:val.value'), ''))
   let exit_code = s:ccline.start(a:input)
 endfunction
-
 
 let &cpo = s:save_cpo
 unlet s:save_cpo

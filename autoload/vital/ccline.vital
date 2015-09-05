@@ -7,3 +7,5 @@ Over.Commandline.Modules.CCLineComplete
 Over.Commandline.Modules.CCLineHistory
 Over.Commandline.Modules.CCLineDelete
 Iterator
+Highlight
+Over.Commandline.Modules.CCLineAutoSuggest

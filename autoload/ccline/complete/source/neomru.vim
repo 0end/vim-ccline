@@ -15,13 +15,22 @@ function! s:source.complete(cmdline, arg, line, pos) abort
 endfunction
 
 function! s:source.display(candidate) abort
-  return pathshorten(a:candidate)
+  let name = fnamemodify(a:candidate, ':t')
+  let dir = fnamemodify(a:candidate, ':h:t')
+  let space = 25 - strlen(name)
+  let space = space <= 0 ? 5 : space
+  return name . repeat(' ', space) . dir
+endfunction
+
+function! s:source.insert(candidate) abort
+  return fnameescape(a:candidate)
 endfunction
 
 function! s:matcher(list, arg) abort
   let result = []
+  let a = tolower(a:arg)
   for e in a:list
-    if stridx(fnamemodify(e, ':t'), a:arg) == 0
+    if stridx(tolower(fnamemodify(e, ':t')), a) == 0 || stridx(fnameescape(e), a:arg) == 0
       call add(result, e)
     endif
   endfor

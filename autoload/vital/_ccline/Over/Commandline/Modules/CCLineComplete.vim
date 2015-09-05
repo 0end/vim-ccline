@@ -57,17 +57,16 @@ endfunction
 
 
 function! s:module.on_char_pre(cmdline)
-  if a:cmdline.is_input("<Over>(complete)")
+  if a:cmdline.is_input("<Over>(complete)") || a:cmdline.is_input("<Over>(complete)", "AutoCompletion")
+    call self._finish()
     if self.complete(a:cmdline) == -1
-      call self._finish()
       call a:cmdline.setchar('')
       return
     endif
     call a:cmdline.setchar('')
     call a:cmdline.tap_keyinput("Completion")
-    " 	elseif a:cmdline.is_input("\<Tab>", "Completion")
   elseif a:cmdline.is_input("<Over>(complete)", "Completion")
-  \		|| a:cmdline.is_input("\<Right>", "Completion")
+  \   || a:cmdline.is_input("\<Right>", "Completion")
     call a:cmdline.setchar('')
     let s:count += 1
     if s:count >= len(s:complete_list)
@@ -80,47 +79,43 @@ function! s:module.on_char_pre(cmdline)
       let s:count = len(s:complete_list) - 1
     endif
   else
-    let self.a = 1
-    if a:cmdline.untap_keyinput("Completion")
+    call self._finish()
+    let self.autocomplete = 1
+    if a:cmdline.untap_keyinput("Completion") || a:cmdline.untap_keyinput("AutoCompletion")
       call a:cmdline.callevent("on_char_pre")
     endif
-    call self._finish()
     return
   endif
   let keyword = (s:count >= 0) ? s:complete.insert(s:complete_list[s:count]) : s:keyword
   call a:cmdline.setline(s:head . keyword . s:tail)
   call a:cmdline.setpos(s:pos + strchars(keyword))
   if len(s:complete_list) > 1
-    call self.drawer.draw(s:complete_list, s:count, s:complete)
+    call self.drawer.draw(a:cmdline, s:complete_list, s:count, s:complete)
   elseif len(s:complete_list) == 1
     call a:cmdline.untap_keyinput("Completion")
   endif
 endfunction
 
 function! s:module.on_char(cmdline) abort
-  if !exists('g:ccline#autocomplete')
+  if !exists('g:ccline#autocomplete') || !g:ccline#autocomplete
     return
   endif
-  if !self.a
+  if !self.autocomplete
     return
   endif
-  if strlen(a:cmdline.char()) > 1 || a:cmdline.char() !~# '[[:print:]]'
-    return
-  endif
-  let self.a = 0
-  call self._finish()
+  let self.autocomplete = 0
   if self.complete(a:cmdline) == -1
-    call a:cmdline.untap_keyinput("Completion")
     return
   endif
-  call a:cmdline.tap_keyinput("Completion")
+  let s:count = -1
+  call a:cmdline.tap_keyinput("AutoCompletion")
   let keyword = (s:count >= 0) ? s:complete.insert(s:complete_list[s:count]) : s:keyword
-  call a:cmdline.setline(s:head . s:keyword . s:tail)
-  call a:cmdline.setpos(s:pos + strchars(s:keyword))
+  call a:cmdline.setline(s:head . keyword . s:tail)
+  call a:cmdline.setpos(s:pos + strchars(keyword))
   if len(s:complete_list) >= 1
-    call self.drawer.draw(s:complete_list, s:count, s:complete)
+    call self.drawer.draw(a:cmdline, s:complete_list, s:count, s:complete)
   else
-    call a:cmdline.untap_keyinput("Completion")
+    call a:cmdline.untap_keyinput("AutoCompletion")
   endif
 endfunction
 
@@ -146,7 +141,7 @@ endfunction
 function! s:make()
   let module = deepcopy(s:module)
   let module.on_complete = 0
-  let module.a = 0
+  let module.autocomplete = 0
   return module
 endfunction
 

@@ -37,10 +37,9 @@ function! s:module.on_char_pre(cmdline)
   endif
   if s:count == 0 && empty(s:cmdhist)
   \	|| s:is_match_mode != s:_should_match_cmdline(a:cmdline)
-    let cmdline = '^' . a:cmdline.getline()
     let s:is_match_mode = s:_should_match_cmdline(a:cmdline)
     let s:cmdhist = [a:cmdline.getline()] + filter(self.histories(),
-    \ (s:is_match_mode && !empty(a:cmdline.getline()) ? 'v:val =~ cmdline' : '!empty(v:val)'))
+    \ s:is_match_mode && !empty(a:cmdline.getline()) ? 'stridx(v:val, a:cmdline.getline()) == 0' : '!empty(v:val)')
   endif
   call a:cmdline.setchar("")
   if a:cmdline.is_input("\<Down>") || a:cmdline.is_input("\<C-n>")

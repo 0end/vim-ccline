@@ -120,7 +120,7 @@ function! ccline#syntax#command(command) abort
   let [range, cmd, bang, space] = a:command
   let iscommand = ccline#command#iscommand(ccline#command#expand_alias(cmd))
   let c = ccline#command#get(cmd)
-  if !iscommand || !empty(c.range)
+  if !iscommand || !empty(c.range) || !empty(c.count)
     let result += ccline#syntax#range(range)
   else
     let result += [{'value': range, 'group': 'Error'}]

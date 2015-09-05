@@ -14,7 +14,7 @@ function! s:drawer.finish() abort
 endfunction
 
 let s:height = 15
-function! s:drawer.draw(list, index, complete) abort
+function! s:drawer.draw(cmdline, list, index, complete) abort
   if s:init
     let self.save_cursor = getcurpos()
     let self.save_cursorline = &l:cursorline

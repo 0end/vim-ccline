@@ -2,6 +2,14 @@ scriptencoding utf-8
 let s:save_cpo = &cpo
 set cpo&vim
 
+function! s:_vital_loaded(V) abort
+  let s:H = a:V.import('Highlight')
+endfunction
+
+function! s:_vital_depends() abort
+  return ['Highlight']
+endfunction
+
 let s:module = {
 \	"name" : "CCLineDrawCommandline"
 \}
@@ -27,7 +35,6 @@ function! s:cmdheight.get()
 	return self.value
 endfunction
 
-
 function! s:suffix(left, suffix)
   if empty(a:suffix)
     return ''
@@ -39,47 +46,27 @@ function! s:suffix(left, suffix)
 " 	return printf("%" . len . "S", a:suffix)
 endfunction
 
-
 let s:old_height = 0
-function! s:_redraw(cmdline)
-  let width = 0
+function! s:_redraw(lines)
   let height = 0
-  for l in a:cmdline._lines
-    let width = strdisplaywidth(l)
-    let height += (width - 1)/(&columns) + 1
+  for l in a:lines
+    " strdisplaywidth(repeat('a', &columns + 1)) != &columns + 1
+    let height += (strwidth(l) - 1)/&columns + 1
   endfor
+  if strwidth(a:lines[len(a:lines) - 1]) % &columns == 0
+    " echo repeat('a', &columns)
+    let height += 1
+  endif
   if !(height == 1 && s:old_height == 1)
     normal! :
   endif
   let s:old_height = height
   call s:cmdheight.save()
   let height = max([height, s:cmdheight.get()])
-  if height > &cmdheight || &cmdheight > height
+  if height != &cmdheight
     let &cmdheight = height
     redraw
   endif
-
-	" if &columns >= width && &columns <= s:old_width && s:old_width >= width
-	" 	redraw
-	" 	normal! :
-	" elseif &columns <= width
-	" 	normal! :
-	" else
-	" 	redraw
-	" endif
-	" let s:old_width = width
-
-	" call s:cmdheight.save()
-	" let height = max([(width - 1) / (&columns) + 1, s:cmdheight.get()])
-	" if height > &cmdheight || &cmdheight > height
-	" 	let &cmdheight = height
-	" 	redraw
-	" endif
-endfunction
-
-
-function! s:_as_echon(str)
-	return "echon " . strtrans(string(a:str))
 endfunction
 
 function! s:module.priority(event)
@@ -89,115 +76,87 @@ function! s:module.priority(event)
   return 0
 endfunction
 
-
 function! s:module.on_draw_pre(cmdline)
-  let left = a:cmdline.get_prompt() . a:cmdline.getline() . repeat(" ", empty(a:cmdline.line.pos_char()))
+  let left = a:cmdline.get_prompt() . a:cmdline.getline() . repeat(' ', empty(a:cmdline.line.pos_char()))
   let suffix = s:suffix(left, a:cmdline.get_suffix())
-  let line = left
-  if empty(suffix)
-    let suffix = 'echon'
-  else
-    let line .= suffix
-  endif
-  let prompt = s:as_echohl(a:cmdline._get_prompt_syntax())
-  let a:cmdline._draw_command = join([
-  \  prompt,
-  \  self.syntax_highlight(a:cmdline),
-  \  'echohl ' . a:cmdline._suffix_highlight,
-  \  suffix,
-  \  'echohl NONE',
-  \ ], ' | ')
-  let a:cmdline._lines = [line]
+  let a:cmdline._syntax = {
+  \ 'before': [],
+  \ 'prompt': a:cmdline._get_prompt_syntax(),
+  \ 'suffix': [{'group': a:cmdline._suffix_highlight, 'value': suffix}],
+  \ 'after': [],
+  \ }
+  let [a:cmdline._syntax.backward, a:cmdline._syntax.cursor, a:cmdline._syntax.forward] = s:draw_cursor(a:cmdline)
 endfunction
 
-function! s:module.syntax_highlight(cmdline)
-  return s:as_echohl(s:draw_cursor(a:cmdline))
+function! s:module.on_draw(cmdline)
+  let list = a:cmdline._syntax.before
+  \ +        [
+  \            a:cmdline._syntax.prompt
+  \          + a:cmdline._syntax.backward
+  \          + a:cmdline._syntax.cursor
+  \          + a:cmdline._syntax.forward
+  \          + a:cmdline._syntax.suffix
+  \          ]
+  \ +        a:cmdline._syntax.after
+  call s:_redraw(s:to_raw(list))
+  execute s:as_echohl(list)
+  redraw
 endfunction
 
 function! s:draw_cursor(cmdline) abort
-  let hl_list = deepcopy(a:cmdline._get_syntax())
-  call filter(hl_list, '!empty(v:val.value)')
+  let l = deepcopy(a:cmdline._get_syntax())
   if empty(a:cmdline.line.pos_char())
-    return hl_list + [{'value': ' ', 'group': a:cmdline.highlights.cursor}]
+    return [l, [{'value': ' ', 'group': a:cmdline.highlights.cursor_on}], []]
   endif
-  let cursor = {'value': a:cmdline.line.pos_char(), 'group': a:cmdline.highlights.cursor_on}
+  let cursor = {'value': a:cmdline.line.pos_char(), 'group': a:cmdline._cursor_insert_highlight}
+  let pos = strlen(a:cmdline.backward() . cursor.value)
   let len = 0
-  for i in range(len(hl_list))
-    let len += strchars(hl_list[i].value)
-    if len == a:cmdline.getpos()
-      let backward = hl_list[: i]
-      let on_cursor = hl_list[i + 1]
-      let on_cursor.value = s:strpart(on_cursor.value, 1)
-      let forward = hl_list[i + 2 :]
-      let hl_list = backward + [cursor] + [on_cursor] + forward
-      break
-    elseif len > a:cmdline.getpos()
-      if i > 0
-        let backward = hl_list[: i - 1]
-      else
-        let backward = []
-      endif
-      let on_cursor = hl_list[i]
-      let forward = hl_list[i + 1 :]
-      let backward += [{'value': s:strpart(on_cursor.value, 0, strchars(on_cursor.value) - (len - a:cmdline.getpos())),
-      \ 'group': on_cursor.group}]
-      let forward = [{'value': s:strpart(on_cursor.value, strchars(on_cursor.value) - (len - a:cmdline.getpos()) + 1),
-      \ 'group': on_cursor.group}] + forward
-      let hl_list = backward + [cursor] + forward
-      break
+  for i in range(len(l))
+    let len += strlen(l[i].value)
+    if len < pos
+      continue
     endif
+    let backward = i > 0 ? l[: i - 1] : []
+    let on_cursor = l[i]
+    let forward = l[i + 1 :]
+    let backward += [{'value': strpart(on_cursor.value, 0, strlen(on_cursor.value) - (len - strlen(a:cmdline.backward()))), 'group': on_cursor.group}]
+    let forward = [{'value': strpart(on_cursor.value, strlen(on_cursor.value) - (len - pos)), 'group': on_cursor.group}] + forward
+
+    call s:H.clear(a:cmdline._cursor_insert_highlight)
+    call s:H.highlight(a:cmdline._cursor_insert_highlight, s:H.extend(s:H.gethldict(on_cursor.group), s:H.gethldict(a:cmdline.highlights.cursor_insert)))
+
+    return [backward, [cursor] , forward]
   endfor
-  return hl_list
+endfunction
+
+function! s:to_raw(list) abort
+  let result = []
+  for line in a:list
+    let str = ''
+    for l in line
+      let str .= l.value
+    endfor
+    call add(result, strtrans(str))
+  endfor
+  return result
 endfunction
 
 function! s:as_echohl(list) abort
-  let expr = ''
-  for i in a:list
-    let expr .= "echohl " . i.group . " | echon " . string(i.value) . " | "
+  let command = ''
+  let over_columns = 0
+  for i in range(len(a:list))
+    let str = ''
+    for l in a:list[i]
+      let v = strtrans(l.value)
+      let str .= v
+      let command .= 'echohl ' . l.group . ' | echon ' . string(v) . ' | '
+    endfor
+    if strwidth(str) % &columns != 0 && i < len(a:list) - 1
+      let command .= 'echon "\n" | '
+    endif
   endfor
-  let expr .= "echohl None"
-  return strtrans(expr)
+  return command . 'echohl None'
 endfunction
-
-
-function! s:strpart(str, start, ...)
-  let s = strpart(a:str, byteidx(a:str, a:start))
-  if a:0 == 0
-    return s
-  else
-    let i = byteidx(s, a:1)
-    return i == -1 ? s : strpart(s, 0, i)
-  endif
-endfunction
-
-
-function! s:_echon(expr)
-	echon strtrans(a:expr)
-endfunction
-
-
-function! s:module.on_draw(cmdline)
-  call s:_redraw(a:cmdline)
-  execute a:cmdline._draw_command
-  redraw
-" 	execute "echohl" a:cmdline.highlights.prompt
-" 	call s:echon(a:cmdline.get_prompt())
-" 	echohl NONE
-" 	call s:echon(a:cmdline.backward())
-" 	if empty(a:cmdline.line.pos_char())
-" 		execute "echohl" a:cmdline.highlights.cursor
-" 		call s:echon(' ')
-" 	else
-" 		execute "echohl" a:cmdline.highlights.cursor_on
-" 		call s:echon(a:cmdline.line.pos_char())
-" 	endif
-" 	echohl NONE
-" 	call s:echon(a:cmdline.forward())
-" 	if	a:cmdline.get_suffix() != ""
-" 		call s:echon(s:suffix(a:cmdline.get_prompt() . a:cmdline.getline() . repeat(" ", empty(a:cmdline.line.pos_char())), a:cmdline.get_suffix()))
-" 	endif
-endfunction
-
 
 function! s:module.on_execute_pre(...)
 	call s:cmdheight.restore()

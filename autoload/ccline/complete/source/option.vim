@@ -5,12 +5,12 @@ function! ccline#complete#source#option#define() abort
 endfunction
 
 function! s:source.parse(cmdline) abort
-  let self.inv = 0
+  let self.on_toggle = 0
   let backward = a:cmdline.backward()
-  let invoption = matchlist(backward, '\sinv\(\w*\)$')
-  if !empty(invoption)
-    let self.inv = 1
-    return [strchars(backward) - strchars(invoption[1]), invoption[1]]
+  let toggle_option = matchlist(backward, '\s\%(no\|inv\)\(\w*\)$')
+  if !empty(toggle_option)
+    let self.on_toggle = 1
+    return [strchars(backward) - strchars(toggle_option[1]), toggle_option[1]]
   endif
   return ccline#complete#parse_by(a:cmdline.backward(), '\w\+')
 endfunction
@@ -23,7 +23,7 @@ function! s:source.complete(cmdline, arg, line, pos) abort
     if empty(result)
       let result = ccline#complete#forward_matcher(keys(s:alias_dic), a:arg)
     endif
-    if self.inv
+    if self.on_toggle
       let result = filter(result, 'get(s:get(v:val), "type", "") ==# "boolean"')
     endif
     return sort(result)

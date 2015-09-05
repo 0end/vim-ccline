@@ -10,7 +10,7 @@ function! s:drawer.finish() abort
   redrawstatus
 endfunction
 
-function! s:drawer.draw(list, index, complete) abort
+function! s:drawer.draw(cmdline, list, index, complete) abort
   let statuslines = s:statuslines(a:list, a:index, map(copy(self.save_bottom_windows), 'winwidth(v:val)'), a:complete)
   call s:set_statuslines(self.save_bottom_windows, statuslines)
   redrawstatus

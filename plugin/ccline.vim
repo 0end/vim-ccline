@@ -8,10 +8,12 @@ let g:loaded_ccline = 1
 let s:save_cpo = &cpo
 set cpo&vim
 
-command! -count CCLineNormal call ccline#start(
-\        <count> != 0 ? ".,.+" . (<count> - <line1>) : '')
+command! -count -nargs=? CCLineNormal call ccline#start(
+\        (<count> != 0 ? ".,.+" . (<count> - <line1>) : '') .
+\         <q-args>
+\ )
 
-command! -range CCLineVisual call ccline#start("'<,'>")
+command! -range -nargs=? CCLineVisual call ccline#start("'<,'>" . <q-args>)
 
 nnoremap <silent> <Plug>(ccline) :CCLineNormal<CR>
 vnoremap <silent> <Plug>(ccline) :CCLineVisual<CR>
